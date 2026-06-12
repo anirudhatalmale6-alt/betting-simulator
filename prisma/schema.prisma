@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  username      String   @unique
+  passwordHash  String
+  balance       Float    @default(1000.0)
+  role          String   @default("user")
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  bets          Bet[]
+  transactions  Transaction[]
+}
+
+model Sport {
+  id   String @id @default(uuid())
+  key  String @unique
+  name String
+  games Game[]
+}
+
+model Game {
+  id            String   @id @default(uuid())
+  externalId    String   @unique
+  sportId       String
+  sport         Sport    @relation(fields: [sportId], references: [id])
+  homeTeam      String
+  awayTeam      String
+  homeScore     Int      @default(0)
+  awayScore     Int      @default(0)
+  startTime     DateTime
+  status        String   @default("upcoming")
+  homeOdds      Float    @default(2.0)
+  awayOdds      Float    @default(2.0)
+  drawOdds      Float?
+  bettingLocked Boolean  @default(false)
+  lastScoreUpdate DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  bets          Bet[]
+}
+
+model Bet {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  gameId      String
+  game        Game     @relation(fields: [gameId], references: [id])
+  pick        String
+  odds        Float
+  amount      Float
+  potentialWin Float
+  status      String   @default("pending")
+  settledAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Transaction {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  amount    Float
+  balance   Float
+  description String
+  createdAt DateTime @default(now())
+}
