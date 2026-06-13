@@ -7,7 +7,7 @@ import Navbar from "@/components/Navbar";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "BetSim - Sports Betting Simulator",
+  title: "BetNow - Sports Betting Simulator",
   description: "Experience sports betting with play money",
 };
 

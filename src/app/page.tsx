@@ -9,7 +9,7 @@ export default function Home() {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center text-center px-4">
       <h1 className="text-5xl sm:text-6xl font-bold mb-4">
-        <span className="text-emerald-400">Bet</span>Sim
+        <span className="text-emerald-400">Bet</span>Now
       </h1>
       <p className="text-xl text-gray-400 mb-2 max-w-md">
         Sports betting simulator with play money

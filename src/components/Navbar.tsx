@@ -19,7 +19,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-6">
             <Link href="/" className="text-xl font-bold text-emerald-400 tracking-tight">
-              BetSim
+              BetNow
             </Link>
             {user && (
               <div className="hidden sm:flex items-center gap-4">
