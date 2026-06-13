@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 
+function americanToDecimal(odds: number): number {
+  if (odds >= 0) return (odds / 100) + 1;
+  return (100 / Math.abs(odds)) + 1;
+}
+
 export async function GET(request: Request) {
   try {
     const payload = requireAuth(request);
@@ -79,7 +84,7 @@ export async function POST(request: Request) {
       betDescription = `${pick === 'home' ? game.homeTeam : pick === 'away' ? game.awayTeam : 'Draw'} @ ${odds}`;
     }
 
-    const potentialWin = Math.round(amount * odds * 100) / 100;
+    const potentialWin = Math.round(amount * americanToDecimal(odds) * 100) / 100;
     const newBalance = user.balance - amount;
 
     const [bet] = await prisma.$transaction([

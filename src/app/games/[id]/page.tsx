@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuth } from '@/components/AuthProvider';
+import { formatAmericanOdds, calculatePayout } from '@/lib/odds-utils';
 
 interface PropMarket {
   id: string;
@@ -70,7 +71,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
         amount: Number(amount),
         propId: selectedBet.propId,
       });
-      const potentialWin = (Number(amount) * selectedBet.odds).toFixed(2);
+      const potentialWin = calculatePayout(Number(amount), selectedBet.odds).toFixed(2);
       setMessage({ text: `Bet placed! ${selectedBet.label} - Potential win: $${potentialWin}`, type: 'success' });
       setSelectedBet(null);
       setAmount('');
@@ -137,7 +138,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                   className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${selectedBet?.pick === 'home' && !selectedBet?.propId ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                 >
                   <div className="text-xs text-gray-400 mb-0.5">{game.homeTeam}</div>
-                  {game.homeOdds.toFixed(2)}
+                  {formatAmericanOdds(game.homeOdds)}
                 </button>
                 {game.drawOdds && (
                   <button
@@ -145,7 +146,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                     className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${selectedBet?.pick === 'draw' && !selectedBet?.propId ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                   >
                     <div className="text-xs text-gray-400 mb-0.5">Draw</div>
-                    {game.drawOdds.toFixed(2)}
+                    {formatAmericanOdds(game.drawOdds)}
                   </button>
                 )}
                 <button
@@ -153,7 +154,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                   className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${selectedBet?.pick === 'away' && !selectedBet?.propId ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                 >
                   <div className="text-xs text-gray-400 mb-0.5">{game.awayTeam}</div>
-                  {game.awayOdds.toFixed(2)}
+                  {formatAmericanOdds(game.awayOdds)}
                 </button>
               </div>
             </div>
@@ -185,14 +186,14 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                                 className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${selectedBet?.propId === prop.id && selectedBet?.pick === 'over' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                               >
                                 <div className="text-[10px] text-gray-400">Over</div>
-                                {prop.overOdds.toFixed(2)}
+                                {formatAmericanOdds(prop.overOdds)}
                               </button>
                               <button
                                 onClick={() => setSelectedBet({ type: 'prop', propId: prop.id, pick: 'under', odds: prop.underOdds!, label: `${prop.description} Under ${prop.line}` })}
                                 className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${selectedBet?.propId === prop.id && selectedBet?.pick === 'under' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                               >
                                 <div className="text-[10px] text-gray-400">Under</div>
-                                {prop.underOdds!.toFixed(2)}
+                                {formatAmericanOdds(prop.underOdds!)}
                               </button>
                             </>
                           )}
@@ -203,14 +204,14 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                                 className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${selectedBet?.propId === prop.id && selectedBet?.pick === 'yes' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                               >
                                 <div className="text-[10px] text-gray-400">Yes</div>
-                                {prop.yesOdds.toFixed(2)}
+                                {formatAmericanOdds(prop.yesOdds)}
                               </button>
                               <button
                                 onClick={() => setSelectedBet({ type: 'prop', propId: prop.id, pick: 'no', odds: prop.noOdds!, label: `${prop.description} - No` })}
                                 className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${selectedBet?.propId === prop.id && selectedBet?.pick === 'no' ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
                               >
                                 <div className="text-[10px] text-gray-400">No</div>
-                                {prop.noOdds!.toFixed(2)}
+                                {formatAmericanOdds(prop.noOdds!)}
                               </button>
                             </>
                           )}
@@ -231,7 +232,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="text-sm font-medium text-white">{selectedBet.label}</div>
-                <div className="text-xs text-emerald-400">@ {selectedBet.odds.toFixed(2)}</div>
+                <div className="text-xs text-emerald-400">@ {formatAmericanOdds(selectedBet.odds)}</div>
               </div>
               <button onClick={() => { setSelectedBet(null); setAmount(''); }} className="text-gray-400 hover:text-white text-sm">Cancel</button>
             </div>
@@ -257,7 +258,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
             </div>
             {amount && Number(amount) > 0 && (
               <div className="text-xs text-gray-400 mt-1.5 text-center">
-                Potential win: ${(Number(amount) * selectedBet.odds).toFixed(2)}
+                Potential win: ${calculatePayout(Number(amount), selectedBet.odds).toFixed(2)}
               </div>
             )}
           </div>

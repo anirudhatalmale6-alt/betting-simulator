@@ -52,7 +52,7 @@ export async function fetchUpcomingGames() {
           apiKey: ODDS_API_KEY,
           regions: 'us',
           markets: 'h2h',
-          oddsFormat: 'decimal',
+          oddsFormat: 'american',
         },
       });
 
@@ -60,7 +60,8 @@ export async function fetchUpcomingGames() {
       if (!sportRecord) continue;
 
       for (const event of response.data) {
-        const bookmaker = event.bookmakers?.[0];
+        const preferred = ['fanduel', 'draftkings'];
+        const bookmaker = event.bookmakers?.find((b: { key: string }) => preferred.includes(b.key)) || event.bookmakers?.[0];
         const market = bookmaker?.markets?.find((m: { key: string }) => m.key === 'h2h');
         const outcomes = market?.outcomes || [];
 
@@ -158,23 +159,29 @@ export async function fetchLiveScores() {
 
 function recalculateOdds(homeScore: number, awayScore: number, prevHomeOdds: number, prevAwayOdds: number) {
   const scoreDiff = homeScore - awayScore;
-  let homeAdj = 1.0;
-  let awayAdj = 1.0;
+  let homeShift = 0;
+  let awayShift = 0;
 
   if (scoreDiff > 0) {
-    homeAdj = 0.85;
-    awayAdj = 1.2;
+    homeShift = -20;
+    awayShift = 20;
   } else if (scoreDiff < 0) {
-    homeAdj = 1.2;
-    awayAdj = 0.85;
+    homeShift = 20;
+    awayShift = -20;
   }
 
-  const newHome = Math.max(1.05, Math.min(20, prevHomeOdds * homeAdj));
-  const newAway = Math.max(1.05, Math.min(20, prevAwayOdds * awayAdj));
+  let newHome = prevHomeOdds + homeShift;
+  let newAway = prevAwayOdds + awayShift;
+
+  if (newHome > -100 && newHome < 100) newHome = newHome >= 0 ? 100 : -100;
+  if (newAway > -100 && newAway < 100) newAway = newAway >= 0 ? 100 : -100;
+
+  newHome = Math.max(-1000, Math.min(1000, newHome));
+  newAway = Math.max(-1000, Math.min(1000, newAway));
 
   return {
-    home: Math.round(newHome * 100) / 100,
-    away: Math.round(newAway * 100) / 100,
+    home: Math.round(newHome),
+    away: Math.round(newAway),
   };
 }
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuth } from './AuthProvider';
+import { formatAmericanOdds, calculatePayout } from '@/lib/odds-utils';
 
 interface Game {
   id: string;
@@ -65,7 +66,7 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
 
     try {
       const odds = selectedPick === 'home' ? game.homeOdds : selectedPick === 'away' ? game.awayOdds : game.drawOdds!;
-      const potentialWin = (Number(amount) * odds).toFixed(2);
+      const potentialWin = calculatePayout(Number(amount), odds).toFixed(2);
       await api.placeBet({ gameId: game.id, pick: selectedPick, amount: Number(amount) });
       setSuccess(`Bet placed! Potential win: $${potentialWin}`);
       setSelectedPick(null);
@@ -142,7 +143,7 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
                     } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-xs text-gray-400 mb-0.5">Home</div>
-                    {game.homeOdds.toFixed(2)}
+                    {formatAmericanOdds(game.homeOdds)}
                   </button>
                   <button
                     onClick={() => setSelectedPick(selectedPick === 'draw' ? null : 'draw')}
@@ -154,7 +155,7 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
                     } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-xs text-gray-400 mb-0.5">Draw</div>
-                    {game.drawOdds.toFixed(2)}
+                    {formatAmericanOdds(game.drawOdds)}
                   </button>
                   <button
                     onClick={() => setSelectedPick(selectedPick === 'away' ? null : 'away')}
@@ -166,7 +167,7 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
                     } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-xs text-gray-400 mb-0.5">Away</div>
-                    {game.awayOdds.toFixed(2)}
+                    {formatAmericanOdds(game.awayOdds)}
                   </button>
                 </div>
               )}
@@ -182,7 +183,7 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
                     } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-xs text-gray-400 mb-0.5">{game.homeTeam}</div>
-                    {game.homeOdds.toFixed(2)}
+                    {formatAmericanOdds(game.homeOdds)}
                   </button>
                   <button
                     onClick={() => setSelectedPick(selectedPick === 'away' ? null : 'away')}
@@ -194,7 +195,7 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
                     } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="text-xs text-gray-400 mb-0.5">{game.awayTeam}</div>
-                    {game.awayOdds.toFixed(2)}
+                    {formatAmericanOdds(game.awayOdds)}
                   </button>
                 </>
               )}
@@ -226,7 +227,7 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
 
             {selectedPick && amount && Number(amount) > 0 && (
               <div className="mt-2 text-xs text-gray-400 text-center">
-                Potential win: ${(Number(amount) * (selectedPick === 'home' ? game.homeOdds : selectedPick === 'away' ? game.awayOdds : game.drawOdds!)).toFixed(2)}
+                Potential win: ${calculatePayout(Number(amount), selectedPick === 'home' ? game.homeOdds : selectedPick === 'away' ? game.awayOdds : game.drawOdds!).toFixed(2)}
               </div>
             )}
           </>
