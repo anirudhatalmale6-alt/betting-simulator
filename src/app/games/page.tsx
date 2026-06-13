@@ -19,12 +19,20 @@ interface Game {
   sport: { name: string; key: string };
 }
 
-const SPORTS = [
+const SPORT_CATEGORIES = [
   { key: '', label: 'All Sports' },
-  { key: 'baseball_mlb', label: 'MLB' },
-  { key: 'icehockey_nhl', label: 'NHL' },
-  { key: 'basketball_nba', label: 'NBA' },
-  { key: 'soccer_epl', label: 'Soccer' },
+  { key: 'americanfootball', label: 'Football' },
+  { key: 'baseball', label: 'Baseball' },
+  { key: 'basketball', label: 'Basketball' },
+  { key: 'icehockey', label: 'Hockey' },
+  { key: 'soccer', label: 'Soccer' },
+  { key: 'mma', label: 'MMA' },
+  { key: 'boxing', label: 'Boxing' },
+  { key: 'tennis', label: 'Tennis' },
+  { key: 'golf', label: 'Golf' },
+  { key: 'rugby', label: 'Rugby' },
+  { key: 'cricket', label: 'Cricket' },
+  { key: 'aussierules', label: 'AFL' },
 ];
 
 export default function GamesPage() {
@@ -36,7 +44,10 @@ export default function GamesPage() {
   const fetchGames = useCallback(async () => {
     try {
       const data = await api.getGames(selectedSport || undefined, selectedStatus || undefined);
-      setGames(data.games);
+      const filtered = selectedSport
+        ? data.games.filter((g: Game) => g.sport.key.startsWith(selectedSport))
+        : data.games;
+      setGames(filtered);
     } catch (error) {
       console.error('Failed to fetch games:', error);
     } finally {
@@ -66,7 +77,7 @@ export default function GamesPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold">Games</h1>
         <div className="flex flex-wrap gap-2">
-          {SPORTS.map(sport => (
+          {SPORT_CATEGORIES.map(sport => (
             <button
               key={sport.key}
               onClick={() => { setSelectedSport(sport.key); setLoading(true); }}

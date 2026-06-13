@@ -5,10 +5,28 @@ const ODDS_API_KEY = process.env.ODDS_API_KEY;
 const BASE_URL = 'https://api.the-odds-api.com/v4';
 
 const SPORT_KEYS = [
+  { key: 'americanfootball_nfl', name: 'NFL Football' },
+  { key: 'americanfootball_ncaaf', name: 'NCAAF Football' },
   { key: 'baseball_mlb', name: 'MLB Baseball' },
-  { key: 'icehockey_nhl', name: 'NHL Hockey' },
   { key: 'basketball_nba', name: 'NBA Basketball' },
+  { key: 'basketball_ncaab', name: 'NCAAB Basketball' },
+  { key: 'basketball_wnba', name: 'WNBA Basketball' },
+  { key: 'icehockey_nhl', name: 'NHL Hockey' },
   { key: 'soccer_epl', name: 'Soccer - EPL' },
+  { key: 'soccer_spain_la_liga', name: 'Soccer - La Liga' },
+  { key: 'soccer_italy_serie_a', name: 'Soccer - Serie A' },
+  { key: 'soccer_germany_bundesliga', name: 'Soccer - Bundesliga' },
+  { key: 'soccer_france_ligue_one', name: 'Soccer - Ligue 1' },
+  { key: 'soccer_uefa_champs_league', name: 'Soccer - Champions League' },
+  { key: 'soccer_usa_mls', name: 'Soccer - MLS' },
+  { key: 'mma_mixed_martial_arts', name: 'MMA / UFC' },
+  { key: 'boxing_boxing', name: 'Boxing' },
+  { key: 'tennis_atp_french_open', name: 'Tennis - ATP' },
+  { key: 'tennis_wta_french_open', name: 'Tennis - WTA' },
+  { key: 'golf_pga_championship', name: 'Golf - PGA' },
+  { key: 'rugbyleague_nrl', name: 'Rugby - NRL' },
+  { key: 'cricket_ipl', name: 'Cricket - IPL' },
+  { key: 'aussierules_afl', name: 'AFL' },
 ];
 
 export async function ensureSports() {
@@ -200,10 +218,28 @@ async function generateMockGames() {
   await ensureSports();
   const sports = await prisma.sport.findMany();
   const teams: Record<string, string[][]> = {
+    americanfootball_nfl: [['Kansas City Chiefs', 'Buffalo Bills'], ['Philadelphia Eagles', 'San Francisco 49ers'], ['Dallas Cowboys', 'New York Giants'], ['Miami Dolphins', 'Baltimore Ravens']],
+    americanfootball_ncaaf: [['Alabama Crimson Tide', 'Georgia Bulldogs'], ['Ohio State Buckeyes', 'Michigan Wolverines'], ['Texas Longhorns', 'Oklahoma Sooners']],
     baseball_mlb: [['New York Yankees', 'Boston Red Sox'], ['Los Angeles Dodgers', 'San Francisco Giants'], ['Houston Astros', 'Texas Rangers'], ['Chicago Cubs', 'St. Louis Cardinals']],
-    icehockey_nhl: [['Toronto Maple Leafs', 'Montreal Canadiens'], ['New York Rangers', 'Boston Bruins'], ['Edmonton Oilers', 'Calgary Flames'], ['Tampa Bay Lightning', 'Florida Panthers']],
     basketball_nba: [['Los Angeles Lakers', 'Golden State Warriors'], ['Boston Celtics', 'New York Knicks'], ['Milwaukee Bucks', 'Philadelphia 76ers'], ['Denver Nuggets', 'Phoenix Suns']],
+    basketball_ncaab: [['Duke Blue Devils', 'North Carolina Tar Heels'], ['Kentucky Wildcats', 'Kansas Jayhawks'], ['Gonzaga Bulldogs', 'UCLA Bruins']],
+    basketball_wnba: [['Las Vegas Aces', 'New York Liberty'], ['Seattle Storm', 'Connecticut Sun']],
+    icehockey_nhl: [['Toronto Maple Leafs', 'Montreal Canadiens'], ['New York Rangers', 'Boston Bruins'], ['Edmonton Oilers', 'Calgary Flames'], ['Tampa Bay Lightning', 'Florida Panthers']],
     soccer_epl: [['Manchester United', 'Liverpool'], ['Arsenal', 'Chelsea'], ['Manchester City', 'Tottenham'], ['Newcastle United', 'Aston Villa']],
+    soccer_spain_la_liga: [['Real Madrid', 'Barcelona'], ['Atletico Madrid', 'Sevilla'], ['Real Sociedad', 'Athletic Bilbao']],
+    soccer_italy_serie_a: [['AC Milan', 'Inter Milan'], ['Juventus', 'Napoli'], ['AS Roma', 'Lazio']],
+    soccer_germany_bundesliga: [['Bayern Munich', 'Borussia Dortmund'], ['RB Leipzig', 'Bayer Leverkusen'], ['Eintracht Frankfurt', 'Wolfsburg']],
+    soccer_france_ligue_one: [['PSG', 'Marseille'], ['Lyon', 'Monaco'], ['Lille', 'Nice']],
+    soccer_uefa_champs_league: [['Real Madrid', 'Manchester City'], ['Bayern Munich', 'PSG'], ['Inter Milan', 'Arsenal']],
+    soccer_usa_mls: [['LA Galaxy', 'LAFC'], ['Inter Miami', 'Atlanta United'], ['Seattle Sounders', 'Portland Timbers']],
+    mma_mixed_martial_arts: [['Fighter A', 'Fighter B'], ['Fighter C', 'Fighter D']],
+    boxing_boxing: [['Boxer A', 'Boxer B'], ['Boxer C', 'Boxer D']],
+    tennis_atp_french_open: [['Player A', 'Player B'], ['Player C', 'Player D']],
+    tennis_wta_french_open: [['Player A', 'Player B'], ['Player C', 'Player D']],
+    golf_pga_championship: [['Golfer A', 'Golfer B'], ['Golfer C', 'Golfer D']],
+    rugbyleague_nrl: [['Sydney Roosters', 'Melbourne Storm'], ['Penrith Panthers', 'Brisbane Broncos']],
+    cricket_ipl: [['Mumbai Indians', 'Chennai Super Kings'], ['Royal Challengers Bangalore', 'Kolkata Knight Riders']],
+    aussierules_afl: [['Collingwood Magpies', 'Carlton Blues'], ['Melbourne Demons', 'Geelong Cats']],
   };
 
   const allGames = [];
@@ -218,7 +254,7 @@ async function generateMockGames() {
       const externalId = `mock_${sport.key}_${i}`;
       const homeOdds = 1.5 + Math.random() * 2;
       const awayOdds = 1.5 + Math.random() * 2;
-      const drawOdds = sport.key === 'soccer_epl' ? 2.8 + Math.random() * 1.5 : null;
+      const drawOdds = sport.key.startsWith('soccer_') ? 2.8 + Math.random() * 1.5 : null;
 
       const game = await prisma.game.upsert({
         where: { externalId },

@@ -31,10 +31,28 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
   const isCompleted = game.status === 'completed';
 
   const sportEmoji: Record<string, string> = {
+    americanfootball_nfl: '🏈',
+    americanfootball_ncaaf: '🏈',
     baseball_mlb: '⚾',
-    icehockey_nhl: '🏒',
     basketball_nba: '🏀',
+    basketball_ncaab: '🏀',
+    basketball_wnba: '🏀',
+    icehockey_nhl: '🏒',
     soccer_epl: '⚽',
+    soccer_spain_la_liga: '⚽',
+    soccer_italy_serie_a: '⚽',
+    soccer_germany_bundesliga: '⚽',
+    soccer_france_ligue_one: '⚽',
+    soccer_uefa_champs_league: '⚽',
+    soccer_usa_mls: '⚽',
+    mma_mixed_martial_arts: '🥊',
+    boxing_boxing: '🥊',
+    tennis_atp_french_open: '🎾',
+    tennis_wta_french_open: '🎾',
+    golf_pga_championship: '⛳',
+    rugbyleague_nrl: '🏉',
+    cricket_ipl: '🏏',
+    aussierules_afl: '🏉',
   };
 
   const handlePlaceBet = async () => {

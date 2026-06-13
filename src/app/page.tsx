@@ -15,7 +15,7 @@ export default function Home() {
         Sports betting simulator with play money
       </p>
       <p className="text-gray-500 mb-8 max-w-lg">
-        Place virtual bets on real MLB, NHL, NBA, and EPL games. Start with $1,000 and see how far you can go.
+        Place virtual bets on NFL, MLB, NBA, NHL, Soccer, MMA, Tennis, Golf and more. Create an account and start betting!
       </p>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -52,23 +52,17 @@ export default function Home() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-16 text-center">
-        <div>
-          <div className="text-3xl mb-2">&#9918;</div>
-          <div className="text-sm text-gray-400">MLB Baseball</div>
-        </div>
-        <div>
-          <div className="text-3xl mb-2">&#127954;</div>
-          <div className="text-sm text-gray-400">NHL Hockey</div>
-        </div>
-        <div>
-          <div className="text-3xl mb-2">&#127936;</div>
-          <div className="text-sm text-gray-400">NBA Basketball</div>
-        </div>
-        <div>
-          <div className="text-3xl mb-2">&#9917;</div>
-          <div className="text-sm text-gray-400">EPL Soccer</div>
-        </div>
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-4 mt-16 text-center">
+        <div><div className="text-2xl mb-1">&#127944;</div><div className="text-xs text-gray-400">NFL</div></div>
+        <div><div className="text-2xl mb-1">&#9918;</div><div className="text-xs text-gray-400">MLB</div></div>
+        <div><div className="text-2xl mb-1">&#127936;</div><div className="text-xs text-gray-400">NBA</div></div>
+        <div><div className="text-2xl mb-1">&#127954;</div><div className="text-xs text-gray-400">NHL</div></div>
+        <div><div className="text-2xl mb-1">&#9917;</div><div className="text-xs text-gray-400">Soccer</div></div>
+        <div><div className="text-2xl mb-1">&#129354;</div><div className="text-xs text-gray-400">MMA</div></div>
+        <div><div className="text-2xl mb-1">&#127934;</div><div className="text-xs text-gray-400">Tennis</div></div>
+        <div><div className="text-2xl mb-1">&#9971;</div><div className="text-xs text-gray-400">Golf</div></div>
+        <div><div className="text-2xl mb-1">&#127951;</div><div className="text-xs text-gray-400">Cricket</div></div>
+        <div><div className="text-2xl mb-1">&#127945;</div><div className="text-xs text-gray-400">Rugby</div></div>
       </div>
     </div>
   );
