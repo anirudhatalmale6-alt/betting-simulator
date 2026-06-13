@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuth } from './AuthProvider';
 
@@ -21,6 +22,7 @@ interface Game {
 
 export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlaced?: () => void }) {
   const { user, refreshUser } = useAuth();
+  const router = useRouter();
   const [selectedPick, setSelectedPick] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [placing, setPlacing] = useState(false);
@@ -232,6 +234,15 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
 
         {error && <div className="mt-2 text-xs text-red-400 text-center">{error}</div>}
         {success && <div className="mt-2 text-xs text-emerald-400 text-center">{success}</div>}
+
+        {user && !isCompleted && (
+          <button
+            onClick={() => router.push(`/games/${game.id}`)}
+            className="w-full mt-3 py-2 text-xs text-emerald-400 hover:text-emerald-300 border border-gray-700 hover:border-emerald-500/30 rounded-lg transition-colors"
+          >
+            View All Props &amp; Markets &rarr;
+          </button>
+        )}
       </div>
     </div>
   );

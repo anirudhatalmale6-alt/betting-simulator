@@ -26,7 +26,8 @@ export const api = {
     if (status) params.set('status', status);
     return fetchAPI(`/api/games?${params}`);
   },
-  placeBet: (data: { gameId: string; pick: string; amount: number }) =>
+  getGame: (id: string) => fetchAPI(`/api/games/${id}`),
+  placeBet: (data: { gameId: string; pick: string; amount: number; propId?: string }) =>
     fetchAPI('/api/bets', { method: 'POST', body: JSON.stringify(data) }),
   getMyBets: (status?: string) => {
     const params = new URLSearchParams();

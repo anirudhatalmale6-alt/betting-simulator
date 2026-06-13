@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const payload = requireAuth(request);
-    const { gameId, pick, amount } = await request.json();
+    const { gameId, pick, amount, propId } = await request.json();
 
     if (!gameId || !pick || !amount) {
       return NextResponse.json({ error: 'Game ID, pick, and amount are required' }, { status: 400 });
@@ -54,22 +54,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Betting is temporarily suspended for this game' }, { status: 400 });
     }
 
-    if (!['home', 'away', 'draw'].includes(pick)) {
-      return NextResponse.json({ error: 'Invalid pick' }, { status: 400 });
+    let odds: number;
+    let betDescription: string;
+
+    if (propId) {
+      const prop = await prisma.propMarket.findUnique({ where: { id: propId } });
+      if (!prop) return NextResponse.json({ error: 'Prop market not found' }, { status: 404 });
+      if (!['over', 'under', 'yes', 'no'].includes(pick)) {
+        return NextResponse.json({ error: 'Invalid pick for prop bet' }, { status: 400 });
+      }
+      if (pick === 'over') odds = prop.overOdds!;
+      else if (pick === 'under') odds = prop.underOdds!;
+      else if (pick === 'yes') odds = prop.yesOdds!;
+      else odds = prop.noOdds!;
+      betDescription = `${prop.description} ${pick}${prop.line ? ` ${prop.line}` : ''} @ ${odds}`;
+    } else {
+      if (!['home', 'away', 'draw'].includes(pick)) {
+        return NextResponse.json({ error: 'Invalid pick' }, { status: 400 });
+      }
+      if (pick === 'draw' && !game.drawOdds) {
+        return NextResponse.json({ error: 'Draw bets not available for this sport' }, { status: 400 });
+      }
+      odds = pick === 'home' ? game.homeOdds : pick === 'away' ? game.awayOdds : game.drawOdds!;
+      betDescription = `${pick === 'home' ? game.homeTeam : pick === 'away' ? game.awayTeam : 'Draw'} @ ${odds}`;
     }
 
-    if (pick === 'draw' && !game.drawOdds) {
-      return NextResponse.json({ error: 'Draw bets not available for this sport' }, { status: 400 });
-    }
-
-    const odds = pick === 'home' ? game.homeOdds : pick === 'away' ? game.awayOdds : game.drawOdds!;
     const potentialWin = Math.round(amount * odds * 100) / 100;
-
     const newBalance = user.balance - amount;
 
     const [bet] = await prisma.$transaction([
       prisma.bet.create({
-        data: { userId: user.id, gameId: game.id, pick, odds, amount, potentialWin },
+        data: { userId: user.id, gameId: game.id, propId: propId || null, pick, odds, amount, potentialWin },
       }),
       prisma.user.update({
         where: { id: user.id },
@@ -81,7 +96,7 @@ export async function POST(request: Request) {
           type: 'bet',
           amount: -amount,
           balance: newBalance,
-          description: `Bet on ${pick === 'home' ? game.homeTeam : pick === 'away' ? game.awayTeam : 'Draw'} @ ${odds}`,
+          description: `Bet on ${betDescription}`,
         },
       }),
     ]);

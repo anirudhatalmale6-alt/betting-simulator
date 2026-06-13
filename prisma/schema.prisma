@@ -47,6 +47,25 @@ model Game {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   bets          Bet[]
+  propMarkets   PropMarket[]
+}
+
+model PropMarket {
+  id          String   @id @default(uuid())
+  gameId      String
+  game        Game     @relation(fields: [gameId], references: [id])
+  category    String
+  description String
+  overOdds    Float?
+  underOdds   Float?
+  yesOdds     Float?
+  noOdds      Float?
+  line        Float?
+  outcome     String?
+  settled     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  bets        Bet[]
 }
 
 model Bet {
@@ -55,6 +74,8 @@ model Bet {
   user        User     @relation(fields: [userId], references: [id])
   gameId      String
   game        Game     @relation(fields: [gameId], references: [id])
+  propId      String?
+  prop        PropMarket? @relation(fields: [propId], references: [id])
   pick        String
   odds        Float
   amount      Float

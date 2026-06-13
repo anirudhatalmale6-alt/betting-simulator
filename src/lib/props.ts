@@ -1,0 +1,171 @@
+import prisma from './prisma';
+
+interface PropTemplate {
+  category: string;
+  description: string;
+  line?: number;
+  type: 'over_under' | 'yes_no';
+}
+
+const SPORT_PROPS: Record<string, PropTemplate[]> = {
+  baseball: [
+    { category: 'Game Props', description: 'Total Runs', line: 8.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Run Scored in 1st Inning', type: 'yes_no' },
+    { category: 'Game Props', description: 'Run Scored in 2nd Inning', type: 'yes_no' },
+    { category: 'Game Props', description: 'Run Scored in 3rd Inning', type: 'yes_no' },
+    { category: 'Game Props', description: 'Run Scored in 4th Inning', type: 'yes_no' },
+    { category: 'Game Props', description: 'Run Scored in 5th Inning', type: 'yes_no' },
+    { category: 'Game Props', description: 'Will There Be a Home Run', type: 'yes_no' },
+    { category: 'Game Props', description: 'Will There Be a Grand Slam', type: 'yes_no' },
+    { category: 'Game Props', description: 'Total Hits', line: 16.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Total Errors', line: 1.5, type: 'over_under' },
+    { category: 'Pitcher Props', description: 'Home Pitcher Strikeouts', line: 5.5, type: 'over_under' },
+    { category: 'Pitcher Props', description: 'Away Pitcher Strikeouts', line: 5.5, type: 'over_under' },
+    { category: 'Pitcher Props', description: 'Home Pitcher Earned Runs', line: 3.5, type: 'over_under' },
+    { category: 'Batter Props', description: 'Home Leadoff Hitter - Hit in 1st At Bat', type: 'yes_no' },
+    { category: 'Batter Props', description: 'Total Home Runs in Game', line: 1.5, type: 'over_under' },
+    { category: 'First/Last', description: 'Home Team Scores First', type: 'yes_no' },
+    { category: 'First/Last', description: 'Game Goes to Extra Innings', type: 'yes_no' },
+  ],
+  basketball: [
+    { category: 'Game Props', description: 'Total Points', line: 220.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Point Spread', line: 5.5, type: 'over_under' },
+    { category: 'Game Props', description: '1st Quarter Total', line: 55.5, type: 'over_under' },
+    { category: 'Game Props', description: '1st Half Total', line: 112.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Will There Be Overtime', type: 'yes_no' },
+    { category: 'Game Props', description: '3rd Quarter Total', line: 54.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Home Star Points', line: 27.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Home Star Rebounds', line: 8.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Home Star Assists', line: 7.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Away Star Points', line: 25.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Away Star Rebounds', line: 7.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Any Player Triple Double', type: 'yes_no' },
+    { category: 'First/Last', description: 'Home Team Scores First', type: 'yes_no' },
+    { category: 'First/Last', description: 'First Basket is 3-Pointer', type: 'yes_no' },
+  ],
+  americanfootball: [
+    { category: 'Game Props', description: 'Total Points', line: 45.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Point Spread', line: 3.5, type: 'over_under' },
+    { category: 'Game Props', description: '1st Half Total', line: 23.5, type: 'over_under' },
+    { category: 'Game Props', description: '1st Quarter Total', line: 10.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Will There Be Overtime', type: 'yes_no' },
+    { category: 'Game Props', description: 'Both Teams Score 20+', type: 'yes_no' },
+    { category: 'Player Props', description: 'Home QB Passing Yards', line: 265.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Home QB Passing TDs', line: 1.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Away QB Passing Yards', line: 245.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Home RB Rushing Yards', line: 75.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Any Player Scores 2+ TDs', type: 'yes_no' },
+    { category: 'Scoring Props', description: 'First Score is Touchdown', type: 'yes_no' },
+    { category: 'Scoring Props', description: 'First Score is Field Goal', type: 'yes_no' },
+    { category: 'Scoring Props', description: 'Will There Be a Safety', type: 'yes_no' },
+  ],
+  icehockey: [
+    { category: 'Game Props', description: 'Total Goals', line: 5.5, type: 'over_under' },
+    { category: 'Game Props', description: '1st Period Total Goals', line: 1.5, type: 'over_under' },
+    { category: 'Game Props', description: '2nd Period Total Goals', line: 1.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Both Teams Score in 1st Period', type: 'yes_no' },
+    { category: 'Game Props', description: 'Both Teams Score in 2nd Period', type: 'yes_no' },
+    { category: 'Game Props', description: 'Will There Be Overtime', type: 'yes_no' },
+    { category: 'Game Props', description: 'Total Shots on Goal', line: 58.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Home Star Points', line: 1.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Away Star Points', line: 1.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Home Goalie Saves', line: 27.5, type: 'over_under' },
+    { category: 'First/Last', description: 'Home Team Scores First', type: 'yes_no' },
+    { category: 'First/Last', description: 'Scoreless 1st Period', type: 'yes_no' },
+  ],
+  soccer: [
+    { category: 'Game Props', description: 'Total Goals', line: 2.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Both Teams to Score', type: 'yes_no' },
+    { category: 'Game Props', description: '1st Half Total Goals', line: 1.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Both Teams Score in 1st Half', type: 'yes_no' },
+    { category: 'Game Props', description: 'Clean Sheet Home Team', type: 'yes_no' },
+    { category: 'Game Props', description: 'Clean Sheet Away Team', type: 'yes_no' },
+    { category: 'Game Props', description: 'Total Corners', line: 9.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Total Cards', line: 3.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Will There Be a Red Card', type: 'yes_no' },
+    { category: 'Game Props', description: 'Will There Be a Penalty', type: 'yes_no' },
+    { category: 'Player Props', description: 'Home Star Anytime Goalscorer', type: 'yes_no' },
+    { category: 'Player Props', description: 'Away Star Anytime Goalscorer', type: 'yes_no' },
+    { category: 'Player Props', description: 'Home Star Shots on Target', line: 1.5, type: 'over_under' },
+    { category: 'First/Last', description: 'Home Team Scores First', type: 'yes_no' },
+    { category: 'First/Last', description: 'Goal in First 10 Minutes', type: 'yes_no' },
+    { category: 'First/Last', description: 'Goal in Last 10 Minutes', type: 'yes_no' },
+  ],
+  mma: [
+    { category: 'Fight Props', description: 'Fight Goes the Distance', type: 'yes_no' },
+    { category: 'Fight Props', description: 'Total Rounds', line: 2.5, type: 'over_under' },
+    { category: 'Fight Props', description: 'Win by KO/TKO', type: 'yes_no' },
+    { category: 'Fight Props', description: 'Win by Submission', type: 'yes_no' },
+    { category: 'Fight Props', description: 'Win by Decision', type: 'yes_no' },
+    { category: 'Fight Props', description: 'Fight Ends in Round 1', type: 'yes_no' },
+  ],
+  boxing: [
+    { category: 'Fight Props', description: 'Fight Goes the Distance', type: 'yes_no' },
+    { category: 'Fight Props', description: 'Total Rounds', line: 8.5, type: 'over_under' },
+    { category: 'Fight Props', description: 'Win by KO/TKO', type: 'yes_no' },
+    { category: 'Fight Props', description: 'Win by Decision', type: 'yes_no' },
+    { category: 'Fight Props', description: 'Knockdown in Fight', type: 'yes_no' },
+  ],
+  tennis: [
+    { category: 'Match Props', description: 'Total Sets', line: 2.5, type: 'over_under' },
+    { category: 'Match Props', description: 'Total Games', line: 21.5, type: 'over_under' },
+    { category: 'Match Props', description: 'Match Goes to Tiebreak', type: 'yes_no' },
+    { category: 'Match Props', description: '1st Set Total Games', line: 10.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Total Aces - Player 1', line: 6.5, type: 'over_under' },
+    { category: 'Player Props', description: 'Total Aces - Player 2', line: 5.5, type: 'over_under' },
+  ],
+  golf: [
+    { category: 'Tournament Props', description: 'Winning Score Under Par', line: 14.5, type: 'over_under' },
+    { category: 'Tournament Props', description: 'Will There Be a Playoff', type: 'yes_no' },
+    { category: 'Tournament Props', description: 'Hole-in-One in Tournament', type: 'yes_no' },
+    { category: 'Matchup Props', description: 'Player 1 Round Score', line: 70.5, type: 'over_under' },
+    { category: 'Matchup Props', description: 'Player 2 Round Score', line: 71.5, type: 'over_under' },
+  ],
+  default: [
+    { category: 'Game Props', description: 'Total Points/Goals', line: 5.5, type: 'over_under' },
+    { category: 'Game Props', description: 'Home Team Wins by 5+', type: 'yes_no' },
+    { category: 'Game Props', description: 'Will There Be Overtime', type: 'yes_no' },
+    { category: 'First/Last', description: 'Home Team Scores First', type: 'yes_no' },
+  ],
+};
+
+function getSportCategory(sportKey: string): string {
+  if (sportKey.startsWith('baseball')) return 'baseball';
+  if (sportKey.startsWith('basketball')) return 'basketball';
+  if (sportKey.startsWith('americanfootball')) return 'americanfootball';
+  if (sportKey.startsWith('icehockey')) return 'icehockey';
+  if (sportKey.startsWith('soccer')) return 'soccer';
+  if (sportKey.startsWith('mma')) return 'mma';
+  if (sportKey.startsWith('boxing')) return 'boxing';
+  if (sportKey.startsWith('tennis')) return 'tennis';
+  if (sportKey.startsWith('golf')) return 'golf';
+  return 'default';
+}
+
+function randomOdds(base: number, variance: number): number {
+  return Math.round((base + (Math.random() - 0.5) * variance) * 100) / 100;
+}
+
+export async function generateMockProps(gameId: string, sportKey: string) {
+  const category = getSportCategory(sportKey);
+  const templates = SPORT_PROPS[category] || SPORT_PROPS['default'];
+
+  for (const template of templates) {
+    const data: Record<string, unknown> = {
+      gameId,
+      category: template.category,
+      description: template.description,
+      line: template.line || null,
+    };
+
+    if (template.type === 'over_under') {
+      data.overOdds = randomOdds(1.91, 0.3);
+      data.underOdds = randomOdds(1.91, 0.3);
+    } else {
+      data.yesOdds = randomOdds(2.5, 2.0);
+      data.noOdds = randomOdds(1.6, 0.6);
+    }
+
+    await prisma.propMarket.create({ data: data as Parameters<typeof prisma.propMarket.create>[0]['data'] });
+  }
+}
