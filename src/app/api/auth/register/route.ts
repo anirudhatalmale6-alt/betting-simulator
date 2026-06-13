@@ -32,18 +32,8 @@ export async function POST(request: Request) {
         email,
         username,
         passwordHash,
-        balance: 1000,
+        balance: 0,
         emailVerified: true,
-      },
-    });
-
-    await prisma.transaction.create({
-      data: {
-        userId: user.id,
-        type: 'deposit',
-        amount: 1000,
-        balance: 1000,
-        description: 'Welcome bonus - Starting balance',
       },
     });
 
