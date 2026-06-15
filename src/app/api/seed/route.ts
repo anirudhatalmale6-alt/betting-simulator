@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 import prisma from '@/lib/prisma';
+import { getOddsApiKey } from '@/lib/settings';
 
-const ODDS_API_KEY = process.env.ODDS_API_KEY;
 const BASE_URL = 'https://api.the-odds-api.com/v4';
 
 const SPORT_KEYS = [
@@ -45,6 +45,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: `Deleted ${result.count} prop markets. They will regenerate with correct odds when games are viewed.` });
     }
 
+    const apiKey = searchParams.get('setApiKey');
+    if (apiKey) {
+      await prisma.setting.upsert({
+        where: { key: 'odds_api_key' },
+        update: { value: apiKey },
+        create: { key: 'odds_api_key', value: apiKey },
+      });
+      return NextResponse.json({ message: 'API key updated in database' });
+    }
+
     return NextResponse.json({ error: 'Missing action param' }, { status: 400 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed' }, { status: 500 });
@@ -68,6 +78,7 @@ export async function POST(request: Request) {
       });
     }
 
+    const ODDS_API_KEY = await getOddsApiKey();
     if (!ODDS_API_KEY) {
       return NextResponse.json({ error: 'No ODDS_API_KEY configured', sports: sportsToFetch.length });
     }

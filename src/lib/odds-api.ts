@@ -1,7 +1,7 @@
 import axios from 'axios';
 import prisma from './prisma';
+import { getOddsApiKey } from './settings';
 
-const ODDS_API_KEY = process.env.ODDS_API_KEY;
 const BASE_URL = 'https://api.the-odds-api.com/v4';
 
 const SPORT_KEYS = [
@@ -40,6 +40,7 @@ export async function ensureSports() {
 }
 
 export async function fetchUpcomingGames() {
+  const ODDS_API_KEY = await getOddsApiKey();
   if (!ODDS_API_KEY || ODDS_API_KEY === 'your-odds-api-key-here') {
     return generateMockGames();
   }
@@ -99,6 +100,7 @@ export async function fetchUpcomingGames() {
 }
 
 export async function fetchLiveScores() {
+  const ODDS_API_KEY = await getOddsApiKey();
   if (!ODDS_API_KEY || ODDS_API_KEY === 'your-odds-api-key-here') {
     return updateMockScores();
   }

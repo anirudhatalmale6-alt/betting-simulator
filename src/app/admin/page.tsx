@@ -33,13 +33,15 @@ interface AdminGame {
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<'users' | 'games' | 'create'>('users');
+  const [tab, setTab] = useState<'users' | 'games' | 'create' | 'settings'>('users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [games, setGames] = useState<AdminGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [newBalance, setNewBalance] = useState('');
   const [message, setMessage] = useState('');
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [currentApiKey, setCurrentApiKey] = useState('');
 
   const [newGame, setNewGame] = useState({
     sportKey: 'baseball_mlb', homeTeam: '', awayTeam: '', startTime: '',
@@ -60,6 +62,9 @@ export default function AdminPage() {
         } else if (tab === 'games') {
           const data = await api.admin.getGames();
           setGames(data.games);
+        } else if (tab === 'settings') {
+          const data = await api.admin.getSettings();
+          setCurrentApiKey(data.settings?.odds_api_key || 'Not set');
         }
       } catch {
         // silent
@@ -138,7 +143,7 @@ export default function AdminPage() {
       )}
 
       <div className="flex gap-2 mb-6">
-        {(['users', 'games', 'create'] as const).map(t => (
+        {(['users', 'games', 'create', 'settings'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -226,6 +231,51 @@ export default function AdminPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : tab === 'settings' ? (
+        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 max-w-lg space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold mb-4">API Settings</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Current Odds API Key</label>
+                <div className="bg-gray-700 px-3 py-2 rounded-lg text-gray-300 font-mono text-sm">{currentApiKey}</div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">New API Key</label>
+                <input
+                  type="text"
+                  value={apiKeyInput}
+                  onChange={e => setApiKeyInput(e.target.value)}
+                  placeholder="Paste new API key here"
+                  className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 font-mono text-sm"
+                />
+              </div>
+              <button
+                onClick={async () => {
+                  if (!apiKeyInput.trim()) return;
+                  try {
+                    await api.admin.updateSetting('odds_api_key', apiKeyInput.trim());
+                    setMessage('API key updated!');
+                    setCurrentApiKey(apiKeyInput.slice(0, 4) + '****' + apiKeyInput.slice(-4));
+                    setApiKeyInput('');
+                    setTimeout(() => setMessage(''), 3000);
+                  } catch {
+                    setMessage('Failed to update API key');
+                  }
+                }}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-lg font-medium transition-colors"
+              >
+                Update API Key
+              </button>
+            </div>
+          </div>
+          <div className="border-t border-gray-700 pt-4">
+            <p className="text-sm text-gray-400">
+              Get your API key from the-odds-api.com. The free plan gives 500 requests/month.
+              Paid plans start at $12/month for more credits.
+            </p>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleCreateGame} className="bg-gray-800 rounded-xl border border-gray-700 p-6 max-w-lg space-y-4">

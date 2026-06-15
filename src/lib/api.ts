@@ -47,5 +47,8 @@ export const api = {
       fetchAPI('/api/admin/games', { method: 'POST', body: JSON.stringify(data) }),
     updateGame: (data: Record<string, unknown>) =>
       fetchAPI('/api/admin/games', { method: 'PATCH', body: JSON.stringify(data) }),
+    getSettings: () => fetchAPI('/api/admin/settings'),
+    updateSetting: (key: string, value: string) =>
+      fetchAPI('/api/admin/settings', { method: 'PATCH', body: JSON.stringify({ key, value }) }),
   },
 };
