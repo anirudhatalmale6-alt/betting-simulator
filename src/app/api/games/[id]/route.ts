@@ -5,6 +5,9 @@ import { generateMockProps } from '@/lib/props';
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const refresh = searchParams.get('refresh') === 'true';
+
     const game = await prisma.game.findUnique({
       where: { id },
       include: { sport: true, propMarkets: { orderBy: { category: 'asc' } } },
@@ -14,7 +17,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Game not found' }, { status: 404 });
     }
 
-    if (game.propMarkets.length === 0) {
+    if (game.propMarkets.length === 0 || refresh) {
+      if (refresh) {
+        await prisma.propMarket.deleteMany({ where: { gameId: id } });
+      }
       await generateMockProps(game.id, game.sport.key);
       const updated = await prisma.game.findUnique({
         where: { id },

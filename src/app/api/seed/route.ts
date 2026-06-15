@@ -39,7 +39,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: `${email} promoted to admin with $10,000 balance` });
     }
 
-    return NextResponse.json({ error: 'Missing promote param' }, { status: 400 });
+    const resetProps = searchParams.get('resetProps');
+    if (resetProps === 'true') {
+      const result = await prisma.propMarket.deleteMany({});
+      return NextResponse.json({ message: `Deleted ${result.count} prop markets. They will regenerate with correct odds when games are viewed.` });
+    }
+
+    return NextResponse.json({ error: 'Missing action param' }, { status: 400 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed' }, { status: 500 });
   }

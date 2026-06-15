@@ -142,11 +142,18 @@ function getSportCategory(sportKey: string): string {
   return 'default';
 }
 
-function randomAmericanOdds(favorite: boolean): number {
-  if (favorite) {
-    return -(100 + Math.floor(Math.random() * 200));
+function generateVigPair(): [number, number] {
+  const impliedProb = 0.3 + Math.random() * 0.4;
+  const vig = 0.03 + Math.random() * 0.04;
+  const p1 = impliedProb + vig / 2;
+  const p2 = (1 - impliedProb) + vig / 2;
+
+  function probToAmerican(p: number): number {
+    if (p >= 0.5) return Math.round(-100 * p / (1 - p));
+    return Math.round(100 * (1 - p) / p);
   }
-  return 100 + Math.floor(Math.random() * 300);
+
+  return [probToAmerican(p1), probToAmerican(p2)];
 }
 
 export async function generateMockProps(gameId: string, sportKey: string) {
@@ -162,11 +169,13 @@ export async function generateMockProps(gameId: string, sportKey: string) {
     };
 
     if (template.type === 'over_under') {
-      data.overOdds = -110 + Math.floor(Math.random() * 20 - 10);
-      data.underOdds = -110 + Math.floor(Math.random() * 20 - 10);
+      const [over, under] = generateVigPair();
+      data.overOdds = over;
+      data.underOdds = under;
     } else {
-      data.yesOdds = randomAmericanOdds(false);
-      data.noOdds = randomAmericanOdds(true);
+      const [yes, no] = generateVigPair();
+      data.yesOdds = yes;
+      data.noOdds = no;
     }
 
     await prisma.propMarket.create({ data: data as Parameters<typeof prisma.propMarket.create>[0]['data'] });
