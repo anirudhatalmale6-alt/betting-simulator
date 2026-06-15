@@ -233,47 +233,50 @@ export default function AdminPage() {
           ))}
         </div>
       ) : tab === 'settings' ? (
-        <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 max-w-lg space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold mb-4">API Settings</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Current Odds API Key</label>
-                <div className="bg-gray-700 px-3 py-2 rounded-lg text-gray-300 font-mono text-sm">{currentApiKey}</div>
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">New API Key</label>
-                <input
-                  type="text"
-                  value={apiKeyInput}
-                  onChange={e => setApiKeyInput(e.target.value)}
-                  placeholder="Paste new API key here"
-                  className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 font-mono text-sm"
-                />
-              </div>
-              <button
-                onClick={async () => {
-                  if (!apiKeyInput.trim()) return;
-                  try {
-                    await api.admin.updateSetting('odds_api_key', apiKeyInput.trim());
-                    setMessage('API key updated!');
-                    setCurrentApiKey(apiKeyInput.slice(0, 4) + '****' + apiKeyInput.slice(-4));
-                    setApiKeyInput('');
-                    setTimeout(() => setMessage(''), 3000);
-                  } catch {
-                    setMessage('Failed to update API key');
-                  }
-                }}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-lg font-medium transition-colors"
-              >
-                Update API Key
-              </button>
+        <div className="max-w-lg space-y-6">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6 space-y-4">
+            <h2 className="text-lg font-semibold">API Settings</h2>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Current API Key</label>
+              <div className="bg-gray-700 px-3 py-2 rounded-lg text-gray-300 font-mono text-sm">{currentApiKey}</div>
             </div>
-          </div>
-          <div className="border-t border-gray-700 pt-4">
-            <p className="text-sm text-gray-400">
-              Get your API key from the-odds-api.com. The free plan gives 500 requests/month.
-              Paid plans start at $12/month for more credits.
+            {currentApiKey !== 'Not set' && (
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Credits Remaining</label>
+                <div className={`bg-gray-700 px-3 py-2 rounded-lg font-mono text-sm ${
+                  Number(currentApiKey) <= 50 ? 'text-red-400' : 'text-emerald-400'
+                }`}>{currentApiKey}</div>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">New API Key</label>
+              <input
+                type="text"
+                value={apiKeyInput}
+                onChange={e => setApiKeyInput(e.target.value)}
+                placeholder="Paste new API key here"
+                className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 font-mono text-sm"
+              />
+            </div>
+            <button
+              onClick={async () => {
+                if (!apiKeyInput.trim()) return;
+                try {
+                  await api.admin.updateSetting('odds_api_key', apiKeyInput.trim());
+                  setMessage('API key updated!');
+                  setCurrentApiKey(apiKeyInput.slice(0, 4) + '****' + apiKeyInput.slice(-4));
+                  setApiKeyInput('');
+                  setTimeout(() => setMessage(''), 3000);
+                } catch {
+                  setMessage('Failed to update API key');
+                }
+              }}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-lg font-medium transition-colors"
+            >
+              Update API Key
+            </button>
+            <p className="text-xs text-gray-500">
+              Get your API key from the-odds-api.com. Free plan = 500/month. To swap keys, just paste a new one above.
             </p>
           </div>
         </div>
