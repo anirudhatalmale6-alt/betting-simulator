@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     }
 
     let decimalProduct = 1;
-    const validatedLegs = [];
+    const validatedLegs: { gameId: string; propId?: string; pick: string; odds: number; label: string }[] = [];
 
     for (const leg of legs) {
       const game = await prisma.game.findUnique({ where: { id: leg.gameId } });
