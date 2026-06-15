@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { fetchUpcomingGames, ensureSports } from '@/lib/odds-api';
 
 export const maxDuration = 60;
 
@@ -17,21 +16,11 @@ export async function GET(request: Request) {
     }
     if (status) where.status = status;
 
-    let games = await prisma.game.findMany({
+    const games = await prisma.game.findMany({
       where,
       include: { sport: true },
       orderBy: { startTime: 'asc' },
     });
-
-    if (games.length === 0) {
-      await ensureSports();
-      await fetchUpcomingGames();
-      games = await prisma.game.findMany({
-        where,
-        include: { sport: true },
-        orderBy: { startTime: 'asc' },
-      });
-    }
 
     return NextResponse.json({ games });
   } catch (error) {
