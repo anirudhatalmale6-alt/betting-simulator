@@ -15,12 +15,12 @@ const SPORT_KEYS = [
 ];
 
 const PLAYER_PROP_MARKETS: Record<string, string[]> = {
-  baseball_mlb: ['pitcher_strikeouts', 'pitcher_outs', 'totals'],
-  basketball_wnba: ['player_points', 'player_rebounds', 'player_assists', 'totals'],
-  americanfootball_nfl: ['player_pass_yds', 'player_pass_tds', 'player_rush_yds', 'player_reception_yds', 'totals'],
-  americanfootball_ncaaf: ['totals'],
-  mma_mixed_martial_arts: ['totals'],
-  boxing_boxing: ['totals'],
+  baseball_mlb: ['pitcher_strikeouts', 'pitcher_outs', 'batter_home_runs', 'batter_hits', 'batter_total_bases', 'batter_rbis', 'batter_runs_scored'],
+  basketball_wnba: ['player_points', 'player_rebounds', 'player_assists'],
+  americanfootball_nfl: ['player_pass_yds', 'player_pass_tds', 'player_rush_yds', 'player_reception_yds'],
+  americanfootball_ncaaf: ['player_pass_yds', 'player_rush_yds'],
+  mma_mixed_martial_arts: [],
+  boxing_boxing: [],
 };
 
 export const maxDuration = 60;
@@ -180,18 +180,21 @@ async function handlePlayerProps(apiKey: string) {
 
       creditsRemaining = parseInt(response.headers['x-requests-remaining'] || '-1');
 
+      await prisma.propMarket.deleteMany({ where: { gameId: game.id } });
+
+      const allMarketData: Record<string, { outcomes: { description: string; name: string; price: number; point: number }[] }> = {};
+
       const preferred = ['fanduel', 'draftkings'];
-      const bookmaker = response.data.bookmakers?.find((b: { key: string }) => preferred.includes(b.key)) || response.data.bookmakers?.[0];
-      if (!bookmaker) continue;
+      for (const bm of response.data.bookmakers || []) {
+        for (const mkt of bm.markets || []) {
+          if (!allMarketData[mkt.key] || preferred.includes(bm.key)) {
+            allMarketData[mkt.key] = mkt;
+          }
+        }
+      }
 
-      await prisma.propMarket.deleteMany({
-        where: { gameId: game.id, category: { startsWith: 'Player' } },
-      });
-
-      for (const market of bookmaker.markets || []) {
-        if (market.key === 'totals') continue;
-
-        const marketName = market.key.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+      for (const [marketKey, market] of Object.entries(allMarketData)) {
+        const marketName = marketKey.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
 
         const playerGroups: Record<string, { over?: { price: number; point: number }; under?: { price: number; point: number } }> = {};
         for (const outcome of market.outcomes || []) {
@@ -203,10 +206,13 @@ async function handlePlayerProps(apiKey: string) {
 
         for (const [player, odds] of Object.entries(playerGroups)) {
           if (!odds.over && !odds.under) continue;
+          const isPitcher = marketKey.startsWith('pitcher_');
+          const isBatter = marketKey.startsWith('batter_');
+          const category = isPitcher ? 'Pitcher Props' : isBatter ? 'Batter Props' : 'Player Props';
           await prisma.propMarket.create({
             data: {
               gameId: game.id,
-              category: `Player Props`,
+              category,
               description: `${player} - ${marketName}`,
               overOdds: odds.over?.price || null,
               underOdds: odds.under?.price || null,
