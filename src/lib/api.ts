@@ -34,6 +34,9 @@ export const api = {
     if (status) params.set('status', status);
     return fetchAPI(`/api/bets?${params}`);
   },
+  placeParlay: (data: { legs: { gameId: string; propId?: string; pick: string; odds: number; label: string }[]; amount: number }) =>
+    fetchAPI('/api/parlays', { method: 'POST', body: JSON.stringify(data) }),
+  getParlays: () => fetchAPI('/api/parlays'),
   refreshScores: () => fetchAPI('/api/scores/refresh', { method: 'POST' }),
   admin: {
     getUsers: () => fetchAPI('/api/admin/users'),

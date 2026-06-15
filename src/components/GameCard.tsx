@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
 import { useAuth } from './AuthProvider';
-import { formatAmericanOdds, calculatePayout } from '@/lib/odds-utils';
+import { useBetSlip } from './BetSlipProvider';
+import { formatAmericanOdds } from '@/lib/odds-utils';
 
 interface Game {
   id: string;
@@ -21,14 +20,10 @@ interface Game {
   sport: { name: string; key: string };
 }
 
-export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlaced?: () => void }) {
-  const { user, refreshUser } = useAuth();
+export default function GameCard({ game }: { game: Game; onBetPlaced?: () => void }) {
+  const { user } = useAuth();
+  const { addLeg, isInSlip } = useBetSlip();
   const router = useRouter();
-  const [selectedPick, setSelectedPick] = useState<string | null>(null);
-  const [amount, setAmount] = useState('');
-  const [placing, setPlacing] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const isLive = game.status === 'live';
   const isCompleted = game.status === 'completed';
@@ -58,32 +53,27 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
     aussierules_afl: '🏉',
   };
 
-  const handlePlaceBet = async () => {
-    if (!selectedPick || !amount) return;
-    setPlacing(true);
-    setError('');
-    setSuccess('');
+  const gameLabel = `${game.homeTeam} vs ${game.awayTeam}`;
 
-    try {
-      const odds = selectedPick === 'home' ? game.homeOdds : selectedPick === 'away' ? game.awayOdds : game.drawOdds!;
-      const potentialWin = calculatePayout(Number(amount), odds).toFixed(2);
-      await api.placeBet({ gameId: game.id, pick: selectedPick, amount: Number(amount) });
-      setSuccess(`Bet placed! Potential win: $${potentialWin}`);
-      setSelectedPick(null);
-      setAmount('');
-      await refreshUser();
-      onBetPlaced?.();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to place bet');
-    } finally {
-      setPlacing(false);
-    }
+  const handleAddToSlip = (pick: string, odds: number, label: string) => {
+    addLeg({
+      id: `${game.id}_${pick}`,
+      gameId: game.id,
+      pick,
+      odds,
+      label,
+      gameLabel,
+    });
   };
 
   const formatTime = (dateStr: string) => {
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   };
+
+  const homeInSlip = isInSlip(`${game.id}_home`);
+  const awayInSlip = isInSlip(`${game.id}_away`);
+  const drawInSlip = isInSlip(`${game.id}_draw`);
 
   return (
     <div className={`bg-gray-800 rounded-xl border ${isLive ? 'border-emerald-500/50' : 'border-gray-700'} overflow-hidden`}>
@@ -129,119 +119,73 @@ export default function GameCard({ game, onBetPlaced }: { game: Game; onBetPlace
         </div>
 
         {!isCompleted && user && (
-          <>
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              {game.drawOdds && (
-                <div className="col-span-2 grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => setSelectedPick(selectedPick === 'home' ? null : 'home')}
-                    disabled={game.bettingLocked}
-                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                      selectedPick === 'home'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <div className="text-xs text-gray-400 mb-0.5">Home</div>
-                    {formatAmericanOdds(game.homeOdds)}
-                  </button>
-                  <button
-                    onClick={() => setSelectedPick(selectedPick === 'draw' ? null : 'draw')}
-                    disabled={game.bettingLocked}
-                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                      selectedPick === 'draw'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <div className="text-xs text-gray-400 mb-0.5">Draw</div>
-                    {formatAmericanOdds(game.drawOdds)}
-                  </button>
-                  <button
-                    onClick={() => setSelectedPick(selectedPick === 'away' ? null : 'away')}
-                    disabled={game.bettingLocked}
-                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                      selectedPick === 'away'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <div className="text-xs text-gray-400 mb-0.5">Away</div>
-                    {formatAmericanOdds(game.awayOdds)}
-                  </button>
-                </div>
-              )}
-              {!game.drawOdds && (
-                <>
-                  <button
-                    onClick={() => setSelectedPick(selectedPick === 'home' ? null : 'home')}
-                    disabled={game.bettingLocked}
-                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                      selectedPick === 'home'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <div className="text-xs text-gray-400 mb-0.5">{game.homeTeam}</div>
-                    {formatAmericanOdds(game.homeOdds)}
-                  </button>
-                  <button
-                    onClick={() => setSelectedPick(selectedPick === 'away' ? null : 'away')}
-                    disabled={game.bettingLocked}
-                    className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
-                      selectedPick === 'away'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <div className="text-xs text-gray-400 mb-0.5">{game.awayTeam}</div>
-                    {formatAmericanOdds(game.awayOdds)}
-                  </button>
-                </>
-              )}
-            </div>
-
-            {selectedPick && (
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={e => setAmount(e.target.value)}
-                    placeholder="Amount"
-                    min="1"
-                    max={user?.balance || 0}
-                    className="w-full bg-gray-700 text-white pl-7 pr-3 py-2 rounded-lg text-sm border border-gray-600 focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {game.drawOdds ? (
+              <div className="col-span-2 grid grid-cols-3 gap-2">
                 <button
-                  onClick={handlePlaceBet}
-                  disabled={placing || !amount || Number(amount) <= 0}
-                  className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  onClick={() => handleAddToSlip('home', game.homeOdds, `${game.homeTeam} ML`)}
+                  disabled={game.bettingLocked}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    homeInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {placing ? '...' : 'Place Bet'}
+                  <div className="text-xs text-gray-400 mb-0.5">Home</div>
+                  {formatAmericanOdds(game.homeOdds)}
+                </button>
+                <button
+                  onClick={() => handleAddToSlip('draw', game.drawOdds!, 'Draw')}
+                  disabled={game.bettingLocked}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    drawInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="text-xs text-gray-400 mb-0.5">Draw</div>
+                  {formatAmericanOdds(game.drawOdds)}
+                </button>
+                <button
+                  onClick={() => handleAddToSlip('away', game.awayOdds, `${game.awayTeam} ML`)}
+                  disabled={game.bettingLocked}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    awayInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="text-xs text-gray-400 mb-0.5">Away</div>
+                  {formatAmericanOdds(game.awayOdds)}
                 </button>
               </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleAddToSlip('home', game.homeOdds, `${game.homeTeam} ML`)}
+                  disabled={game.bettingLocked}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    homeInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="text-xs text-gray-400 mb-0.5">{game.homeTeam}</div>
+                  {formatAmericanOdds(game.homeOdds)}
+                </button>
+                <button
+                  onClick={() => handleAddToSlip('away', game.awayOdds, `${game.awayTeam} ML`)}
+                  disabled={game.bettingLocked}
+                  className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                    awayInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <div className="text-xs text-gray-400 mb-0.5">{game.awayTeam}</div>
+                  {formatAmericanOdds(game.awayOdds)}
+                </button>
+              </>
             )}
-
-            {selectedPick && amount && Number(amount) > 0 && (
-              <div className="mt-2 text-xs text-gray-400 text-center">
-                Potential win: ${calculatePayout(Number(amount), selectedPick === 'home' ? game.homeOdds : selectedPick === 'away' ? game.awayOdds : game.drawOdds!).toFixed(2)}
-              </div>
-            )}
-          </>
+          </div>
         )}
-
-        {error && <div className="mt-2 text-xs text-red-400 text-center">{error}</div>}
-        {success && <div className="mt-2 text-xs text-emerald-400 text-center">{success}</div>}
 
         {user && !isCompleted && (
           <button
             onClick={() => router.push(`/games/${game.id}`)}
-            className="w-full mt-3 py-2 text-xs text-emerald-400 hover:text-emerald-300 border border-gray-700 hover:border-emerald-500/30 rounded-lg transition-colors"
+            className="w-full mt-1 py-2 text-xs text-emerald-400 hover:text-emerald-300 border border-gray-700 hover:border-emerald-500/30 rounded-lg transition-colors"
           >
-            View All Props &amp; Markets &rarr;
+            View All Props &amp; Markets →
           </button>
         )}
       </div>

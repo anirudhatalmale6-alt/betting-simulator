@@ -18,6 +18,7 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   bets          Bet[]
+  parlays       Parlay[]
   transactions  Transaction[]
 }
 
@@ -47,6 +48,7 @@ model Game {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   bets          Bet[]
+  parlayLegs    ParlayLeg[]
   propMarkets   PropMarket[]
 }
 
@@ -66,6 +68,7 @@ model PropMarket {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   bets        Bet[]
+  parlayLegs  ParlayLeg[]
 }
 
 model Bet {
@@ -84,6 +87,35 @@ model Bet {
   settledAt   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Parlay {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  amount      Float
+  totalOdds   Float
+  potentialWin Float
+  status      String   @default("pending")
+  settledAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  legs        ParlayLeg[]
+}
+
+model ParlayLeg {
+  id        String   @id @default(uuid())
+  parlayId  String
+  parlay    Parlay   @relation(fields: [parlayId], references: [id])
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id])
+  propId    String?
+  prop      PropMarket? @relation(fields: [propId], references: [id])
+  pick      String
+  odds      Float
+  label     String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
 }
 
 model Transaction {
