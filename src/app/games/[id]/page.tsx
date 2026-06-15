@@ -35,12 +35,86 @@ interface Game {
   propMarkets: PropMarket[];
 }
 
+type PropTab = 'batting' | 'pitching' | 'game' | 'all';
+
+function getAvailableTabs(props: PropMarket[], sportKey: string): { key: PropTab; label: string }[] {
+  const hasBatting = props.some(p => p.category === 'Batter Props');
+  const hasPitching = props.some(p => p.category === 'Pitcher Props');
+  const hasPlayer = props.some(p => p.category === 'Player Props');
+  const hasGame = props.some(p => ['Game Props', 'Game Totals', 'First/Last'].includes(p.category));
+
+  const tabs: { key: PropTab; label: string }[] = [];
+
+  if (sportKey.startsWith('baseball')) {
+    if (hasBatting) tabs.push({ key: 'batting', label: 'Batting' });
+    if (hasPitching) tabs.push({ key: 'pitching', label: 'Pitching' });
+  } else if (hasPlayer) {
+    tabs.push({ key: 'batting', label: 'Player Props' });
+  }
+  if (hasGame) tabs.push({ key: 'game', label: 'Game Props' });
+  if (tabs.length === 0) tabs.push({ key: 'all', label: 'All Props' });
+
+  return tabs;
+}
+
+function getPropsForTab(props: PropMarket[], tab: PropTab): Record<string, PropMarket[]> {
+  let filtered: PropMarket[];
+  if (tab === 'batting') {
+    filtered = props.filter(p => p.category === 'Batter Props' || p.category === 'Player Props');
+  } else if (tab === 'pitching') {
+    filtered = props.filter(p => p.category === 'Pitcher Props');
+  } else if (tab === 'game') {
+    filtered = props.filter(p => ['Game Props', 'Game Totals', 'First/Last'].includes(p.category));
+  } else {
+    filtered = props;
+  }
+
+  const groups: Record<string, PropMarket[]> = {};
+  for (const p of filtered) {
+    const marketType = getMarketGroup(p.description);
+    if (!groups[marketType]) groups[marketType] = [];
+    groups[marketType].push(p);
+  }
+  return groups;
+}
+
+function getMarketGroup(desc: string): string {
+  const lower = desc.toLowerCase();
+  if (lower.includes('home run')) return 'Player Home Runs';
+  if (lower.includes('batter hits') || (lower.includes('hits') && !lower.includes('total hits'))) return 'Player Hits';
+  if (lower.includes('total bases')) return 'Player Total Bases';
+  if (lower.includes('rbis') || lower.includes('rbi')) return 'Player RBIs';
+  if (lower.includes('runs scored') && lower.includes('batter')) return 'Player Runs Scored';
+  if (lower.includes('strikeout')) return 'Strikeouts';
+  if (lower.includes('pitcher out')) return 'Pitcher Outs';
+  if (lower.includes('player point')) return 'Points';
+  if (lower.includes('player rebound')) return 'Rebounds';
+  if (lower.includes('player assist')) return 'Assists';
+  if (lower.includes('run scored in')) return 'Innings - Run Scored';
+  if (lower.includes('total run') || lower.includes('total point') || lower.includes('total goal')) return 'Game Total';
+  if (lower.includes('extra inning') || lower.includes('overtime')) return 'Extras';
+  return 'Other';
+}
+
+function getPlayerName(desc: string): string {
+  const dash = desc.indexOf(' - ');
+  if (dash > 0) return desc.substring(0, dash);
+  return desc;
+}
+
+function getMarketLabel(desc: string): string {
+  const dash = desc.indexOf(' - ');
+  if (dash > 0) return desc.substring(dash + 3);
+  return desc;
+}
+
 export default function GameDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user } = useAuth();
   const { addLeg, isInSlip } = useBetSlip();
   const [game, setGame] = useState<Game | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<PropTab>('batting');
 
   useEffect(() => {
     fetchGame();
@@ -50,6 +124,8 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
     try {
       const data = await api.getGame(id);
       setGame(data.game);
+      const tabs = getAvailableTabs(data.game.propMarkets, data.game.sport.key);
+      if (tabs.length > 0) setActiveTab(tabs[0].key);
     } catch {
       console.error('Failed to fetch game');
     } finally {
@@ -65,25 +141,13 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
   if (!game) return <div className="text-center py-20 text-gray-400">Game not found</div>;
 
   const gameLabel = `${game.homeTeam} vs ${game.awayTeam}`;
+  const tabs = getAvailableTabs(game.propMarkets, game.sport.key);
+  const groupedProps = getPropsForTab(game.propMarkets, activeTab);
 
   const handleAddToSlip = (pick: string, odds: number, label: string, propId?: string) => {
     const slipId = propId ? `${propId}_${pick}` : `${game.id}_${pick}`;
-    addLeg({
-      id: slipId,
-      gameId: game.id,
-      propId,
-      pick,
-      odds,
-      label,
-      gameLabel,
-    });
+    addLeg({ id: slipId, gameId: game.id, propId, pick, odds, label, gameLabel });
   };
-
-  const propsByCategory: Record<string, PropMarket[]> = {};
-  game.propMarkets.forEach(p => {
-    if (!propsByCategory[p.category]) propsByCategory[p.category] = [];
-    propsByCategory[p.category].push(p);
-  });
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -151,68 +215,98 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {Object.keys(propsByCategory).length > 0 && (
-        <div className="space-y-4">
-          {Object.entries(propsByCategory).map(([category, props]) => (
-            <div key={category} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
-              <div className="px-4 py-3 bg-gray-800/50 border-b border-gray-700">
-                <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wide">{category}</h3>
-              </div>
-              <div className="divide-y divide-gray-700/50">
-                {props.map(prop => (
-                  <div key={prop.id} className="px-4 py-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-white">{prop.description}</span>
-                        {prop.line && <span className="text-sm text-emerald-400 ml-2">{prop.line}</span>}
-                      </div>
-                      {canBet && (
-                        <div className="flex gap-2 shrink-0">
-                          {prop.overOdds != null && (
-                            <>
-                              <button
-                                onClick={() => handleAddToSlip('over', prop.overOdds!, `${prop.description} Over ${prop.line}`, prop.id)}
-                                className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${isInSlip(`${prop.id}_over`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                              >
-                                <div className="text-[10px] text-gray-400">Over</div>
-                                {formatAmericanOdds(prop.overOdds)}
-                              </button>
-                              <button
-                                onClick={() => handleAddToSlip('under', prop.underOdds!, `${prop.description} Under ${prop.line}`, prop.id)}
-                                className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${isInSlip(`${prop.id}_under`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                              >
-                                <div className="text-[10px] text-gray-400">Under</div>
-                                {formatAmericanOdds(prop.underOdds!)}
-                              </button>
-                            </>
-                          )}
-                          {prop.yesOdds != null && (
-                            <>
-                              <button
-                                onClick={() => handleAddToSlip('yes', prop.yesOdds!, `${prop.description} - Yes`, prop.id)}
-                                className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${isInSlip(`${prop.id}_yes`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                              >
-                                <div className="text-[10px] text-gray-400">Yes</div>
-                                {formatAmericanOdds(prop.yesOdds)}
-                              </button>
-                              <button
-                                onClick={() => handleAddToSlip('no', prop.noOdds!, `${prop.description} - No`, prop.id)}
-                                className={`py-1.5 px-3 rounded-lg text-xs font-medium transition-all ${isInSlip(`${prop.id}_no`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                              >
-                                <div className="text-[10px] text-gray-400">No</div>
-                                {formatAmericanOdds(prop.noOdds!)}
-                              </button>
-                            </>
+      {game.propMarkets.length > 0 && (
+        <>
+          <div className="flex border-b border-gray-700 mb-4 overflow-x-auto">
+            {tabs.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors ${
+                  activeTab === tab.key
+                    ? 'text-emerald-400 border-b-2 border-emerald-400'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-4">
+            {Object.entries(groupedProps).map(([groupName, props]) => (
+              <div key={groupName} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                <div className="px-4 py-3 bg-gray-800/50 border-b border-gray-700">
+                  <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wide">{groupName}</h3>
+                </div>
+                <div className="divide-y divide-gray-700/50">
+                  {props.map(prop => {
+                    const playerName = getPlayerName(prop.description);
+                    const marketLabel = getMarketLabel(prop.description);
+                    const isPlayerProp = prop.description.includes(' - ');
+
+                    return (
+                      <div key={prop.id} className="px-4 py-3">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            {isPlayerProp ? (
+                              <div>
+                                <div className="text-sm font-medium text-white">{playerName}</div>
+                                <div className="text-xs text-gray-400">{marketLabel}</div>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-white">{prop.description}</span>
+                            )}
+                          </div>
+                          {canBet && (
+                            <div className="flex gap-2 shrink-0">
+                              {prop.overOdds != null && (
+                                <>
+                                  <button
+                                    onClick={() => handleAddToSlip('over', prop.overOdds!, `${playerName} Over ${prop.line}`, prop.id)}
+                                    className={`py-2 px-3 rounded-lg text-xs font-medium transition-all min-w-[70px] ${isInSlip(`${prop.id}_over`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                  >
+                                    <div className="text-[10px] text-gray-400">O {prop.line}</div>
+                                    {formatAmericanOdds(prop.overOdds)}
+                                  </button>
+                                  <button
+                                    onClick={() => handleAddToSlip('under', prop.underOdds!, `${playerName} Under ${prop.line}`, prop.id)}
+                                    className={`py-2 px-3 rounded-lg text-xs font-medium transition-all min-w-[70px] ${isInSlip(`${prop.id}_under`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                  >
+                                    <div className="text-[10px] text-gray-400">U {prop.line}</div>
+                                    {formatAmericanOdds(prop.underOdds!)}
+                                  </button>
+                                </>
+                              )}
+                              {prop.yesOdds != null && (
+                                <>
+                                  <button
+                                    onClick={() => handleAddToSlip('yes', prop.yesOdds!, `${prop.description} - Yes`, prop.id)}
+                                    className={`py-2 px-3 rounded-lg text-xs font-medium transition-all min-w-[70px] ${isInSlip(`${prop.id}_yes`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                  >
+                                    <div className="text-[10px] text-gray-400">Yes</div>
+                                    {formatAmericanOdds(prop.yesOdds)}
+                                  </button>
+                                  <button
+                                    onClick={() => handleAddToSlip('no', prop.noOdds!, `${prop.description} - No`, prop.id)}
+                                    className={`py-2 px-3 rounded-lg text-xs font-medium transition-all min-w-[70px] ${isInSlip(`${prop.id}_no`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                  >
+                                    <div className="text-[10px] text-gray-400">No</div>
+                                    {formatAmericanOdds(prop.noOdds!)}
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
