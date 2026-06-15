@@ -22,6 +22,29 @@ const SPORT_KEYS = [
 
 export const maxDuration = 60;
 
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const email = searchParams.get('promote');
+    const secret = searchParams.get('secret');
+
+    if (secret !== 'betnow-seed-2024') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (email) {
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      await prisma.user.update({ where: { id: user.id }, data: { role: 'admin', balance: 10000 } });
+      return NextResponse.json({ message: `${email} promoted to admin with $10,000 balance` });
+    }
+
+    return NextResponse.json({ error: 'Missing promote param' }, { status: 400 });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed' }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
