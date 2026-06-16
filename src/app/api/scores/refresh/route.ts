@@ -65,10 +65,23 @@ export async function POST() {
       }
     }
 
+    const completedWithPending = await prisma.game.findMany({
+      where: {
+        status: 'completed',
+        bets: { some: { status: 'pending' } },
+      },
+    });
+
+    for (const game of completedWithPending) {
+      const settled = await settleGameBets(game.id);
+      betsSettled += settled;
+    }
+
     return NextResponse.json({
       gamesStarted,
       gamesCompleted,
       betsSettled,
+      retroSettled: completedWithPending.length,
     });
   } catch (error) {
     console.error('Score refresh error:', error);
