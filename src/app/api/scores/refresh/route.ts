@@ -4,18 +4,18 @@ import prisma from '@/lib/prisma';
 export const maxDuration = 30;
 
 const GAME_DURATIONS: Record<string, number> = {
-  baseball: 4 * 60,
-  basketball: 3 * 60,
-  americanfootball: 4 * 60,
-  icehockey: 3 * 60,
-  soccer: 2.5 * 60,
-  mma: 2 * 60,
-  boxing: 2 * 60,
-  tennis: 3 * 60,
-  golf: 6 * 60,
-  rugbyleague: 2.5 * 60,
-  cricket: 5 * 60,
-  aussierules: 3 * 60,
+  baseball: 3 * 60,
+  basketball: 2.5 * 60,
+  americanfootball: 3.5 * 60,
+  icehockey: 2.5 * 60,
+  soccer: 2 * 60,
+  mma: 1.5 * 60,
+  boxing: 1.5 * 60,
+  tennis: 2.5 * 60,
+  golf: 5 * 60,
+  rugbyleague: 2 * 60,
+  cricket: 4 * 60,
+  aussierules: 2.5 * 60,
 };
 
 function getEstimatedDuration(sportKey: string): number {

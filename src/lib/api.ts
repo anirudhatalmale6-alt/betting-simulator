@@ -47,6 +47,12 @@ export const api = {
       fetchAPI('/api/admin/games', { method: 'POST', body: JSON.stringify(data) }),
     updateGame: (data: Record<string, unknown>) =>
       fetchAPI('/api/admin/games', { method: 'PATCH', body: JSON.stringify(data) }),
+    refreshOdds: () =>
+      fetchAPI('/api/refresh?mode=odds', { method: 'POST' }),
+    refreshProps: () =>
+      fetchAPI('/api/refresh?mode=props', { method: 'POST' }),
+    lockStale: () =>
+      fetchAPI('/api/refresh?mode=lock-stale', { method: 'POST' }),
     getSettings: () => fetchAPI('/api/admin/settings'),
     updateSetting: (key: string, value: string) =>
       fetchAPI('/api/admin/settings', { method: 'PATCH', body: JSON.stringify({ key, value }) }),

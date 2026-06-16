@@ -204,33 +204,80 @@ export default function AdminPage() {
           ))}
         </div>
       ) : tab === 'games' ? (
-        <div className="space-y-3">
-          {games.map(g => (
-            <div key={g.id} className="bg-gray-800 rounded-xl border border-gray-700 p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-400">{g.sport.name}</div>
-                  <div className="font-medium">{g.homeTeam} vs {g.awayTeam}</div>
-                  <div className="text-sm text-gray-400 mt-1">
-                    Score: {g.homeScore}-{g.awayScore} | {g._count.bets} bets | Odds: {g.homeOdds}/{g.awayOdds}
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={async () => {
+                setMessage('Refreshing odds from API...');
+                try {
+                  const r = await api.admin.refreshOdds();
+                  setMessage(`Odds refreshed! ${r.totalGames} games updated. Credits left: ${r.creditsRemaining}`);
+                  const data = await api.admin.getGames();
+                  setGames(data.games);
+                } catch { setMessage('Failed to refresh odds'); }
+                setTimeout(() => setMessage(''), 5000);
+              }}
+              className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded-lg"
+            >
+              Refresh Odds (uses credits)
+            </button>
+            <button
+              onClick={async () => {
+                setMessage('Refreshing player props...');
+                try {
+                  const r = await api.admin.refreshProps();
+                  setMessage(`Props refreshed! ${r.propsCreated} props for ${r.gamesChecked} games. Credits left: ${r.creditsRemaining}`);
+                } catch { setMessage('Failed to refresh props'); }
+                setTimeout(() => setMessage(''), 5000);
+              }}
+              className="px-3 py-1.5 bg-purple-700 hover:bg-purple-600 text-white text-xs rounded-lg"
+            >
+              Refresh Props (uses credits)
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  const r = await api.admin.lockStale();
+                  setMessage(`Locked ${r.lockedGames} stale games`);
+                  const data = await api.admin.getGames();
+                  setGames(data.games);
+                } catch { setMessage('Failed'); }
+                setTimeout(() => setMessage(''), 3000);
+              }}
+              className="px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white text-xs rounded-lg"
+            >
+              Lock Stale Games
+            </button>
+          </div>
+          <div className="space-y-3">
+            {games.map(g => (
+              <div key={g.id} className="bg-gray-800 rounded-xl border border-gray-700 p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-400">{g.sport.name}</div>
+                    <div className="font-medium">{g.homeTeam} vs {g.awayTeam}</div>
+                    <div className="text-sm text-gray-400 mt-1">
+                      Score: {g.homeScore}-{g.awayScore} | {g._count.bets} bets | Odds: {g.homeOdds}/{g.awayOdds}
+                      {g.bettingLocked && <span className="ml-2 text-amber-400">[LOCKED]</span>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-0.5 rounded ${
+                      g.status === 'live' ? 'bg-emerald-600/20 text-emerald-400' :
+                      g.status === 'completed' ? 'bg-gray-600/20 text-gray-400' :
+                      'bg-blue-600/20 text-blue-400'
+                    }`}>{g.status}</span>
+                    {g.status === 'upcoming' && (
+                      <button onClick={() => handleGameStatus(g.id, 'live')} className="text-xs bg-emerald-700 hover:bg-emerald-600 px-2 py-1 rounded">Start</button>
+                    )}
+                    {g.status === 'live' && (
+                      <button onClick={() => handleGameStatus(g.id, 'completed')} className="text-xs bg-red-700 hover:bg-red-600 px-2 py-1 rounded">End + Settle</button>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded ${
-                    g.status === 'live' ? 'bg-emerald-600/20 text-emerald-400' :
-                    g.status === 'completed' ? 'bg-gray-600/20 text-gray-400' :
-                    'bg-blue-600/20 text-blue-400'
-                  }`}>{g.status}</span>
-                  {g.status === 'upcoming' && (
-                    <button onClick={() => handleGameStatus(g.id, 'live')} className="text-xs bg-emerald-700 hover:bg-emerald-600 px-2 py-1 rounded">Start</button>
-                  )}
-                  {g.status === 'live' && (
-                    <button onClick={() => handleGameStatus(g.id, 'completed')} className="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">End</button>
-                  )}
-                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       ) : tab === 'settings' ? (
         <div className="max-w-lg space-y-6">
