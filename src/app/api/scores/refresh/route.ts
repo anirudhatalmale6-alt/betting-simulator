@@ -1,15 +1,188 @@
 import { NextResponse } from 'next/server';
-import { fetchLiveScores, fetchUpcomingGames } from '@/lib/odds-api';
+import prisma from '@/lib/prisma';
 
-export const maxDuration = 60;
+export const maxDuration = 30;
+
+const GAME_DURATIONS: Record<string, number> = {
+  baseball: 4 * 60,
+  basketball: 3 * 60,
+  americanfootball: 4 * 60,
+  icehockey: 3 * 60,
+  soccer: 2.5 * 60,
+  mma: 2 * 60,
+  boxing: 2 * 60,
+  tennis: 3 * 60,
+  golf: 6 * 60,
+  rugbyleague: 2.5 * 60,
+  cricket: 5 * 60,
+  aussierules: 3 * 60,
+};
+
+function getEstimatedDuration(sportKey: string): number {
+  for (const [prefix, mins] of Object.entries(GAME_DURATIONS)) {
+    if (sportKey.startsWith(prefix)) return mins;
+  }
+  return 3 * 60;
+}
 
 export async function POST() {
   try {
-    await fetchLiveScores();
-    await fetchUpcomingGames();
-    return NextResponse.json({ message: 'Scores refreshed' });
+    const now = new Date();
+    let gamesStarted = 0;
+    let gamesCompleted = 0;
+    let betsSettled = 0;
+
+    const upcomingStarted = await prisma.game.updateMany({
+      where: {
+        status: 'upcoming',
+        startTime: { lte: now },
+      },
+      data: { status: 'live' },
+    });
+    gamesStarted = upcomingStarted.count;
+
+    const liveGames = await prisma.game.findMany({
+      where: { status: 'live' },
+      include: { sport: true },
+    });
+
+    for (const game of liveGames) {
+      const durationMins = getEstimatedDuration(game.sport.key);
+      const estimatedEnd = new Date(game.startTime.getTime() + durationMins * 60 * 1000);
+
+      if (now >= estimatedEnd) {
+        await prisma.game.update({
+          where: { id: game.id },
+          data: {
+            status: 'completed',
+            bettingLocked: true,
+          },
+        });
+
+        const settled = await settleGameBets(game.id);
+        betsSettled += settled;
+        gamesCompleted++;
+      }
+    }
+
+    return NextResponse.json({
+      gamesStarted,
+      gamesCompleted,
+      betsSettled,
+    });
   } catch (error) {
     console.error('Score refresh error:', error);
     return NextResponse.json({ error: 'Failed to refresh scores' }, { status: 500 });
   }
+}
+
+async function settleGameBets(gameId: string): Promise<number> {
+  const game = await prisma.game.findUnique({ where: { id: gameId } });
+  if (!game) return 0;
+
+  let settled = 0;
+
+  const winner = game.homeScore > game.awayScore ? 'home'
+    : game.homeScore < game.awayScore ? 'away'
+    : 'draw';
+
+  const pendingBets = await prisma.bet.findMany({
+    where: { gameId, status: 'pending' },
+    include: { user: true },
+  });
+
+  for (const bet of pendingBets) {
+    let won = false;
+
+    if (!bet.propId) {
+      won = bet.pick === winner;
+    } else {
+      won = Math.random() > 0.5;
+    }
+
+    const newStatus = won ? 'won' : 'lost';
+
+    await prisma.bet.update({
+      where: { id: bet.id },
+      data: { status: newStatus, settledAt: new Date() },
+    });
+
+    if (won) {
+      const newBalance = bet.user.balance + bet.potentialWin;
+      await prisma.user.update({
+        where: { id: bet.userId },
+        data: { balance: newBalance },
+      });
+      await prisma.transaction.create({
+        data: {
+          userId: bet.userId,
+          type: 'win',
+          amount: bet.potentialWin,
+          balance: newBalance,
+          description: `Won bet - Payout $${bet.potentialWin.toFixed(2)}`,
+        },
+      });
+    }
+
+    settled++;
+  }
+
+  const pendingParlayLegs = await prisma.parlayLeg.findMany({
+    where: { gameId, status: 'pending' },
+    include: { parlay: true },
+  });
+
+  for (const leg of pendingParlayLegs) {
+    let won = false;
+
+    if (!leg.propId) {
+      won = leg.pick === winner;
+    } else {
+      won = Math.random() > 0.5;
+    }
+
+    await prisma.parlayLeg.update({
+      where: { id: leg.id },
+      data: { status: won ? 'won' : 'lost' },
+    });
+  }
+
+  const parlayIds = [...new Set(pendingParlayLegs.map(l => l.parlayId))];
+  for (const parlayId of parlayIds) {
+    const parlay = await prisma.parlay.findUnique({
+      where: { id: parlayId },
+      include: { legs: true, user: true },
+    });
+    if (!parlay || parlay.status !== 'pending') continue;
+
+    const allSettled = parlay.legs.every(l => l.status !== 'pending');
+    if (!allSettled) continue;
+
+    const allWon = parlay.legs.every(l => l.status === 'won');
+    const newStatus = allWon ? 'won' : 'lost';
+
+    await prisma.parlay.update({
+      where: { id: parlayId },
+      data: { status: newStatus, settledAt: new Date() },
+    });
+
+    if (allWon && parlay.user) {
+      const newBalance = parlay.user.balance + parlay.potentialWin;
+      await prisma.user.update({
+        where: { id: parlay.user.id },
+        data: { balance: newBalance },
+      });
+      await prisma.transaction.create({
+        data: {
+          userId: parlay.user.id,
+          type: 'win',
+          amount: parlay.potentialWin,
+          balance: newBalance,
+          description: `Won parlay - Payout $${parlay.potentialWin.toFixed(2)}`,
+        },
+      });
+    }
+  }
+
+  return settled;
 }
