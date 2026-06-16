@@ -55,6 +55,44 @@ export async function GET(request: Request) {
       return NextResponse.json({ message: 'API key updated in database' });
     }
 
+    const fixBalances = searchParams.get('fixBalances');
+    if (fixBalances === 'true') {
+      const users = await prisma.user.findMany();
+      const results = [];
+      for (const user of users) {
+        const betsPlaced = await prisma.bet.aggregate({
+          where: { userId: user.id },
+          _sum: { amount: true },
+        });
+        const betsWon = await prisma.bet.aggregate({
+          where: { userId: user.id, status: 'won' },
+          _sum: { potentialWin: true },
+        });
+        const parlaysPlaced = await prisma.parlay.aggregate({
+          where: { userId: user.id },
+          _sum: { amount: true },
+        });
+        const parlaysWon = await prisma.parlay.aggregate({
+          where: { userId: user.id, status: 'won' },
+          _sum: { potentialWin: true },
+        });
+
+        const startBalance = 10000;
+        const totalBet = (betsPlaced._sum.amount || 0) + (parlaysPlaced._sum.amount || 0);
+        const totalWon = (betsWon._sum.potentialWin || 0) + (parlaysWon._sum.potentialWin || 0);
+        const correctBalance = startBalance - totalBet + totalWon;
+
+        if (Math.abs(user.balance - correctBalance) > 0.01) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { balance: Math.round(correctBalance * 100) / 100 },
+          });
+          results.push({ email: user.email, old: user.balance, new: correctBalance, diff: correctBalance - user.balance });
+        }
+      }
+      return NextResponse.json({ message: 'Balances recalculated', fixes: results });
+    }
+
     return NextResponse.json({ error: 'Missing action param' }, { status: 400 });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed' }, { status: 500 });

@@ -65,14 +65,17 @@ export async function POST() {
       }
     }
 
-    const completedWithPending = await prisma.game.findMany({
+    const completedWithPendingBets = await prisma.game.findMany({
       where: {
         status: 'completed',
-        bets: { some: { status: 'pending' } },
+        OR: [
+          { bets: { some: { status: 'pending' } } },
+          { parlayLegs: { some: { status: 'pending' } } },
+        ],
       },
     });
 
-    for (const game of completedWithPending) {
+    for (const game of completedWithPendingBets) {
       const settled = await settleGameBets(game.id);
       betsSettled += settled;
     }
@@ -81,7 +84,7 @@ export async function POST() {
       gamesStarted,
       gamesCompleted,
       betsSettled,
-      retroSettled: completedWithPending.length,
+      retroSettled: completedWithPendingBets.length,
     });
   } catch (error) {
     console.error('Score refresh error:', error);
@@ -101,7 +104,6 @@ async function settleGameBets(gameId: string): Promise<number> {
 
   const pendingBets = await prisma.bet.findMany({
     where: { gameId, status: 'pending' },
-    include: { user: true },
   });
 
   for (const bet of pendingBets) {
@@ -121,17 +123,17 @@ async function settleGameBets(gameId: string): Promise<number> {
     });
 
     if (won) {
-      const newBalance = bet.user.balance + bet.potentialWin;
       await prisma.user.update({
         where: { id: bet.userId },
-        data: { balance: newBalance },
+        data: { balance: { increment: bet.potentialWin } },
       });
+      const freshUser = await prisma.user.findUnique({ where: { id: bet.userId } });
       await prisma.transaction.create({
         data: {
           userId: bet.userId,
           type: 'win',
           amount: bet.potentialWin,
-          balance: newBalance,
+          balance: freshUser?.balance || 0,
           description: `Won bet - Payout $${bet.potentialWin.toFixed(2)}`,
         },
       });
@@ -142,7 +144,6 @@ async function settleGameBets(gameId: string): Promise<number> {
 
   const pendingParlayLegs = await prisma.parlayLeg.findMany({
     where: { gameId, status: 'pending' },
-    include: { parlay: true },
   });
 
   for (const leg of pendingParlayLegs) {
@@ -164,7 +165,7 @@ async function settleGameBets(gameId: string): Promise<number> {
   for (const parlayId of parlayIds) {
     const parlay = await prisma.parlay.findUnique({
       where: { id: parlayId },
-      include: { legs: true, user: true },
+      include: { legs: true },
     });
     if (!parlay || parlay.status !== 'pending') continue;
 
@@ -179,18 +180,18 @@ async function settleGameBets(gameId: string): Promise<number> {
       data: { status: newStatus, settledAt: new Date() },
     });
 
-    if (allWon && parlay.user) {
-      const newBalance = parlay.user.balance + parlay.potentialWin;
+    if (allWon) {
       await prisma.user.update({
-        where: { id: parlay.user.id },
-        data: { balance: newBalance },
+        where: { id: parlay.userId },
+        data: { balance: { increment: parlay.potentialWin } },
       });
+      const freshUser = await prisma.user.findUnique({ where: { id: parlay.userId } });
       await prisma.transaction.create({
         data: {
-          userId: parlay.user.id,
+          userId: parlay.userId,
           type: 'win',
           amount: parlay.potentialWin,
-          balance: newBalance,
+          balance: freshUser?.balance || 0,
           description: `Won parlay - Payout $${parlay.potentialWin.toFixed(2)}`,
         },
       });
