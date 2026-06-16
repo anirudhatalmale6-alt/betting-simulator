@@ -11,12 +11,7 @@ export default function Home() {
       <h1 className="text-5xl sm:text-6xl font-bold mb-4">
         <span className="text-emerald-400">Bet</span>Now
       </h1>
-      <p className="text-xl text-gray-400 mb-2 max-w-md">
-        Sports betting simulator with play money
-      </p>
-      <p className="text-gray-500 mb-8 max-w-lg">
-        Place virtual bets on NFL, MLB, NBA, NHL, Soccer, MMA, Tennis, Golf and more. Create an account and start betting!
-      </p>
+      <p className="text-gray-500 mb-8 max-w-lg"></p>
 
       <div className="flex flex-col sm:flex-row gap-3">
         {user ? (
