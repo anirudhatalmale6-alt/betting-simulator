@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import axios from 'axios';
 import prisma from '@/lib/prisma';
 import { getOddsApiKey } from '@/lib/settings';
+import { generateMockProps } from '@/lib/props';
 
 const BASE_URL = 'https://api.the-odds-api.com/v4';
 
@@ -101,28 +102,53 @@ async function handleOddsRefresh(apiKey: string) {
           },
         });
 
-        if (totals) {
-          const overOutcome = totals.outcomes?.find((o: { name: string }) => o.name === 'Over');
-          const underOutcome = totals.outcomes?.find((o: { name: string }) => o.name === 'Under');
-          if (overOutcome && underOutcome) {
-            const game = await prisma.game.findUnique({ where: { externalId: event.id } });
-            if (game) {
+        const gameRecord = await prisma.game.findUnique({ where: { externalId: event.id } });
+        if (gameRecord) {
+          if (totals) {
+            const overOutcome = totals.outcomes?.find((o: { name: string }) => o.name === 'Over');
+            const underOutcome = totals.outcomes?.find((o: { name: string }) => o.name === 'Under');
+            if (overOutcome && underOutcome) {
               const desc = `Total ${sport.key.startsWith('baseball') ? 'Runs' : sport.key.startsWith('soccer') ? 'Goals' : 'Points'}`;
               await prisma.propMarket.upsert({
-                where: { id: `${game.id}_totals` },
+                where: { id: `${gameRecord.id}_totals` },
                 update: {
                   overOdds: overOutcome.price,
                   underOdds: underOutcome.price,
                   line: overOutcome.point,
                 },
                 create: {
-                  id: `${game.id}_totals`,
-                  gameId: game.id,
+                  id: `${gameRecord.id}_totals`,
+                  gameId: gameRecord.id,
                   category: 'Game Totals',
                   description: desc,
                   overOdds: overOutcome.price,
                   underOdds: underOutcome.price,
                   line: overOutcome.point,
+                },
+              });
+            }
+          }
+
+          const spreads = bookmaker.markets?.find((m: { key: string }) => m.key === 'spreads');
+          if (spreads) {
+            const homeSpread = spreads.outcomes?.find((o: { name: string }) => o.name === event.home_team);
+            const awaySpread = spreads.outcomes?.find((o: { name: string }) => o.name === event.away_team);
+            if (homeSpread && awaySpread) {
+              await prisma.propMarket.upsert({
+                where: { id: `${gameRecord.id}_spread` },
+                update: {
+                  overOdds: homeSpread.price,
+                  underOdds: awaySpread.price,
+                  line: homeSpread.point,
+                },
+                create: {
+                  id: `${gameRecord.id}_spread`,
+                  gameId: gameRecord.id,
+                  category: 'Spread',
+                  description: `${event.home_team} vs ${event.away_team}`,
+                  overOdds: homeSpread.price,
+                  underOdds: awaySpread.price,
+                  line: homeSpread.point,
                 },
               });
             }
@@ -180,7 +206,9 @@ async function handlePlayerProps(apiKey: string) {
 
       creditsRemaining = parseInt(response.headers['x-requests-remaining'] || '-1');
 
-      await prisma.propMarket.deleteMany({ where: { gameId: game.id } });
+      await prisma.propMarket.deleteMany({
+        where: { gameId: game.id, category: { notIn: ['Spread', 'Game Totals'] } },
+      });
 
       const allMarketData: Record<string, { outcomes: { description: string; name: string; price: number; point: number }[] }> = {};
 
@@ -227,11 +255,26 @@ async function handlePlayerProps(apiKey: string) {
     }
   }
 
+  let gamePropsGenerated = 0;
+  for (const game of todayGames) {
+    try {
+      const existingProps = await prisma.propMarket.count({
+        where: { gameId: game.id, category: { notIn: ['Spread', 'Game Totals'] } },
+      });
+      if (existingProps === 0) {
+        await generateMockProps(game.id, game.sport.key);
+        gamePropsGenerated++;
+      }
+    } catch {
+      // skip
+    }
+  }
+
   if (creditsRemaining >= 0) {
     await saveSetting('api_credits_remaining', String(creditsRemaining));
   }
 
-  return NextResponse.json({ gamesChecked: todayGames.length, propsCreated, creditsRemaining, errors });
+  return NextResponse.json({ gamesChecked: todayGames.length, propsCreated, gamePropsGenerated, creditsRemaining, errors });
 }
 
 async function handleLockStale() {

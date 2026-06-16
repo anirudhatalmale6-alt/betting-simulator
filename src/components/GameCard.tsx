@@ -118,36 +118,36 @@ export default function GameCard({ game }: { game: Game; onBetPlaced?: () => voi
           </div>
         </div>
 
-        {!isCompleted && user && (
+        {!isCompleted && (
           <div className="grid grid-cols-2 gap-2 mb-3">
             {game.drawOdds ? (
               <div className="col-span-2 grid grid-cols-3 gap-2">
                 <button
-                  onClick={() => handleAddToSlip('home', game.homeOdds, `${game.homeTeam} ML`)}
-                  disabled={game.bettingLocked}
+                  onClick={() => user && handleAddToSlip('home', game.homeOdds, `${game.homeTeam} ML`)}
+                  disabled={game.bettingLocked || !user}
                   className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     homeInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${game.bettingLocked || !user ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-xs text-gray-400 mb-0.5">Home</div>
                   {formatAmericanOdds(game.homeOdds)}
                 </button>
                 <button
-                  onClick={() => handleAddToSlip('draw', game.drawOdds!, 'Draw')}
-                  disabled={game.bettingLocked}
+                  onClick={() => user && handleAddToSlip('draw', game.drawOdds!, 'Draw')}
+                  disabled={game.bettingLocked || !user}
                   className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     drawInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${game.bettingLocked || !user ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-xs text-gray-400 mb-0.5">Draw</div>
                   {formatAmericanOdds(game.drawOdds)}
                 </button>
                 <button
-                  onClick={() => handleAddToSlip('away', game.awayOdds, `${game.awayTeam} ML`)}
-                  disabled={game.bettingLocked}
+                  onClick={() => user && handleAddToSlip('away', game.awayOdds, `${game.awayTeam} ML`)}
+                  disabled={game.bettingLocked || !user}
                   className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     awayInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${game.bettingLocked || !user ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-xs text-gray-400 mb-0.5">Away</div>
                   {formatAmericanOdds(game.awayOdds)}
@@ -156,21 +156,21 @@ export default function GameCard({ game }: { game: Game; onBetPlaced?: () => voi
             ) : (
               <>
                 <button
-                  onClick={() => handleAddToSlip('home', game.homeOdds, `${game.homeTeam} ML`)}
-                  disabled={game.bettingLocked}
+                  onClick={() => user && handleAddToSlip('home', game.homeOdds, `${game.homeTeam} ML`)}
+                  disabled={game.bettingLocked || !user}
                   className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     homeInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${game.bettingLocked || !user ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-xs text-gray-400 mb-0.5">{game.homeTeam}</div>
                   {formatAmericanOdds(game.homeOdds)}
                 </button>
                 <button
-                  onClick={() => handleAddToSlip('away', game.awayOdds, `${game.awayTeam} ML`)}
-                  disabled={game.bettingLocked}
+                  onClick={() => user && handleAddToSlip('away', game.awayOdds, `${game.awayTeam} ML`)}
+                  disabled={game.bettingLocked || !user}
                   className={`py-2 px-3 rounded-lg text-sm font-medium transition-all ${
                     awayInSlip ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                  } ${game.bettingLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${game.bettingLocked || !user ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="text-xs text-gray-400 mb-0.5">{game.awayTeam}</div>
                   {formatAmericanOdds(game.awayOdds)}
@@ -180,7 +180,7 @@ export default function GameCard({ game }: { game: Game; onBetPlaced?: () => voi
           </div>
         )}
 
-        {user && !isCompleted && (
+        {!isCompleted && (
           <button
             onClick={() => router.push(`/games/${game.id}`)}
             className="w-full mt-1 py-2 text-xs text-emerald-400 hover:text-emerald-300 border border-gray-700 hover:border-emerald-500/30 rounded-lg transition-colors"

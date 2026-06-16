@@ -41,7 +41,7 @@ function getAvailableTabs(props: PropMarket[], sportKey: string): { key: PropTab
   const hasBatting = props.some(p => p.category === 'Batter Props');
   const hasPitching = props.some(p => p.category === 'Pitcher Props');
   const hasPlayer = props.some(p => p.category === 'Player Props');
-  const hasGame = props.some(p => ['Game Props', 'Game Totals', 'First/Last'].includes(p.category));
+  const hasGame = props.some(p => ['Game Props', 'First/Last', 'Fight Props', 'Match Props', 'Tournament Props', 'Matchup Props', 'Scoring Props'].includes(p.category));
 
   const tabs: { key: PropTab; label: string }[] = [];
 
@@ -52,7 +52,7 @@ function getAvailableTabs(props: PropMarket[], sportKey: string): { key: PropTab
     tabs.push({ key: 'batting', label: 'Player Props' });
   }
   if (hasGame) tabs.push({ key: 'game', label: 'Game Props' });
-  if (tabs.length === 0) tabs.push({ key: 'all', label: 'All Props' });
+  if (tabs.length === 0 && props.length > 0) tabs.push({ key: 'all', label: 'All Props' });
 
   return tabs;
 }
@@ -64,7 +64,7 @@ function getPropsForTab(props: PropMarket[], tab: PropTab): Record<string, PropM
   } else if (tab === 'pitching') {
     filtered = props.filter(p => p.category === 'Pitcher Props');
   } else if (tab === 'game') {
-    filtered = props.filter(p => ['Game Props', 'Game Totals', 'First/Last'].includes(p.category));
+    filtered = props.filter(p => ['Game Props', 'First/Last', 'Fight Props', 'Match Props', 'Tournament Props', 'Matchup Props', 'Scoring Props'].includes(p.category));
   } else {
     filtered = props;
   }
@@ -135,14 +135,16 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
 
   const isLive = game?.status === 'live';
   const isCompleted = game?.status === 'completed';
-  const canBet = user && !isCompleted && !game?.bettingLocked;
+  const canBet = !isCompleted && !game?.bettingLocked;
+  const canPlace = user && canBet;
 
   if (loading) return <div className="text-center py-20 text-gray-400">Loading game...</div>;
   if (!game) return <div className="text-center py-20 text-gray-400">Game not found</div>;
 
   const gameLabel = `${game.homeTeam} vs ${game.awayTeam}`;
-  const tabs = getAvailableTabs(game.propMarkets, game.sport.key);
-  const groupedProps = getPropsForTab(game.propMarkets, activeTab);
+  const nonMetaProps = game.propMarkets.filter(p => p.category !== 'Spread' && p.category !== 'Game Totals');
+  const tabs = getAvailableTabs(nonMetaProps, game.sport.key);
+  const groupedProps = getPropsForTab(nonMetaProps, activeTab);
 
   const handleAddToSlip = (pick: string, odds: number, label: string, propId?: string) => {
     const slipId = propId ? `${propId}_${pick}` : `${game.id}_${pick}`;
@@ -183,33 +185,106 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {canBet && (
-            <div>
-              <h3 className="text-sm text-gray-400 mb-2 uppercase tracking-wide">Moneyline</h3>
-              <div className={`grid ${game.drawOdds ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
-                <button
-                  onClick={() => handleAddToSlip('home', game.homeOdds, `${game.homeTeam} ML`)}
-                  className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${game.id}_home`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                >
-                  <div className="text-xs text-gray-400 mb-0.5">{game.homeTeam}</div>
-                  {formatAmericanOdds(game.homeOdds)}
-                </button>
-                {game.drawOdds && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm text-gray-400 mb-2 uppercase tracking-wide">Moneyline</h3>
+                <div className={`grid ${game.drawOdds ? 'grid-cols-3' : 'grid-cols-2'} gap-2`}>
                   <button
-                    onClick={() => handleAddToSlip('draw', game.drawOdds!, 'Draw')}
-                    className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${game.id}_draw`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                    onClick={() => canPlace && handleAddToSlip('home', game.homeOdds, `${game.homeTeam} ML`)}
+                    disabled={!canPlace}
+                    className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${game.id}_home`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} ${!canPlace ? 'opacity-70 cursor-not-allowed' : ''}`}
                   >
-                    <div className="text-xs text-gray-400 mb-0.5">Draw</div>
-                    {formatAmericanOdds(game.drawOdds)}
+                    <div className="text-xs text-gray-400 mb-0.5">{game.homeTeam}</div>
+                    {formatAmericanOdds(game.homeOdds)}
                   </button>
-                )}
-                <button
-                  onClick={() => handleAddToSlip('away', game.awayOdds, `${game.awayTeam} ML`)}
-                  className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${game.id}_away`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
-                >
-                  <div className="text-xs text-gray-400 mb-0.5">{game.awayTeam}</div>
-                  {formatAmericanOdds(game.awayOdds)}
-                </button>
+                  {game.drawOdds && (
+                    <button
+                      onClick={() => canPlace && handleAddToSlip('draw', game.drawOdds!, 'Draw')}
+                      disabled={!canPlace}
+                      className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${game.id}_draw`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} ${!canPlace ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    >
+                      <div className="text-xs text-gray-400 mb-0.5">Draw</div>
+                      {formatAmericanOdds(game.drawOdds)}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => canPlace && handleAddToSlip('away', game.awayOdds, `${game.awayTeam} ML`)}
+                    disabled={!canPlace}
+                    className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${game.id}_away`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} ${!canPlace ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    <div className="text-xs text-gray-400 mb-0.5">{game.awayTeam}</div>
+                    {formatAmericanOdds(game.awayOdds)}
+                  </button>
+                </div>
               </div>
+
+              {(() => {
+                const spreadProps = game.propMarkets.filter(p => p.category === 'Spread');
+                if (spreadProps.length === 0) return null;
+                return (
+                  <div>
+                    <h3 className="text-sm text-gray-400 mb-2 uppercase tracking-wide">Spread</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {spreadProps.map(sp => (
+                        <div key={sp.id} className="contents">
+                          <button
+                            onClick={() => canPlace && handleAddToSlip('over', sp.overOdds!, `${game.homeTeam} ${(sp.line || 0) > 0 ? '+' : ''}${sp.line}`, sp.id)}
+                            disabled={!canPlace}
+                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${sp.id}_over`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} ${!canPlace ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          >
+                            <div className="text-xs text-gray-400 mb-0.5">{game.homeTeam} {(sp.line || 0) > 0 ? '+' : ''}{sp.line}</div>
+                            {sp.overOdds != null && formatAmericanOdds(sp.overOdds)}
+                          </button>
+                          <button
+                            onClick={() => canPlace && handleAddToSlip('under', sp.underOdds!, `${game.awayTeam} ${(-(sp.line || 0)) > 0 ? '+' : ''}${-(sp.line || 0)}`, sp.id)}
+                            disabled={!canPlace}
+                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${sp.id}_under`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} ${!canPlace ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          >
+                            <div className="text-xs text-gray-400 mb-0.5">{game.awayTeam} {(-(sp.line || 0)) > 0 ? '+' : ''}{-(sp.line || 0)}</div>
+                            {sp.underOdds != null && formatAmericanOdds(sp.underOdds)}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {(() => {
+                const totalProps = game.propMarkets.filter(p => p.category === 'Game Totals');
+                if (totalProps.length === 0) return null;
+                return (
+                  <div>
+                    <h3 className="text-sm text-gray-400 mb-2 uppercase tracking-wide">Total</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {totalProps.map(tp => (
+                        <div key={tp.id} className="contents">
+                          <button
+                            onClick={() => canPlace && handleAddToSlip('over', tp.overOdds!, `Over ${tp.line}`, tp.id)}
+                            disabled={!canPlace}
+                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${tp.id}_over`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} ${!canPlace ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          >
+                            <div className="text-xs text-gray-400 mb-0.5">Over {tp.line}</div>
+                            {tp.overOdds != null && formatAmericanOdds(tp.overOdds)}
+                          </button>
+                          <button
+                            onClick={() => canPlace && handleAddToSlip('under', tp.underOdds!, `Under ${tp.line}`, tp.id)}
+                            disabled={!canPlace}
+                            className={`py-3 px-3 rounded-lg text-sm font-medium transition-all ${isInSlip(`${tp.id}_under`) ? 'bg-emerald-600 text-white ring-2 ring-emerald-400' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'} ${!canPlace ? 'opacity-70 cursor-not-allowed' : ''}`}
+                          >
+                            <div className="text-xs text-gray-400 mb-0.5">Under {tp.line}</div>
+                            {tp.underOdds != null && formatAmericanOdds(tp.underOdds)}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {!user && (
+                <p className="text-xs text-gray-500 text-center">Sign in to place bets</p>
+              )}
             </div>
           )}
         </div>
@@ -259,7 +334,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                             )}
                           </div>
                           {canBet && (
-                            <div className="flex gap-2 shrink-0">
+                            <div className={`flex gap-2 shrink-0 ${!canPlace ? 'opacity-70' : ''}`}>
                               {prop.overOdds != null && (
                                 <>
                                   <button
