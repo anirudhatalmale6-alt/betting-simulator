@@ -158,9 +158,14 @@ function generateOddsFromProb(baseProb: number): [number, number] {
   return [probToAmerican(p1), probToAmerican(p2)];
 }
 
-export async function generateMockProps(gameId: string, sportKey: string) {
+export async function generateMockProps(gameId: string, sportKey: string, gamePropsOnly = false) {
   const category = getSportCategory(sportKey);
-  const templates = SPORT_PROPS[category] || SPORT_PROPS['default'];
+  let templates = SPORT_PROPS[category] || SPORT_PROPS['default'];
+
+  if (gamePropsOnly) {
+    const gameCategories = ['Game Props', 'First/Last', 'Fight Props', 'Match Props', 'Tournament Props', 'Scoring Props'];
+    templates = templates.filter(t => gameCategories.includes(t.category));
+  }
 
   for (const template of templates) {
     const data: Record<string, unknown> = {

@@ -258,11 +258,14 @@ async function handlePlayerProps(apiKey: string) {
   let gamePropsGenerated = 0;
   for (const game of todayGames) {
     try {
-      const existingProps = await prisma.propMarket.count({
-        where: { gameId: game.id, category: { notIn: ['Spread', 'Game Totals'] } },
+      const hasPlayerProps = await prisma.propMarket.count({
+        where: { gameId: game.id, category: { in: ['Batter Props', 'Pitcher Props', 'Player Props'] } },
       });
-      if (existingProps === 0) {
-        await generateMockProps(game.id, game.sport.key);
+      const hasGameProps = await prisma.propMarket.count({
+        where: { gameId: game.id, category: { in: ['Game Props', 'First/Last', 'Fight Props', 'Match Props', 'Scoring Props'] } },
+      });
+      if (hasGameProps === 0) {
+        await generateMockProps(game.id, game.sport.key, hasPlayerProps > 0);
         gamePropsGenerated++;
       }
     } catch {

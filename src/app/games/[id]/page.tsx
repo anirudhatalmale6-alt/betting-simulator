@@ -71,28 +71,32 @@ function getPropsForTab(props: PropMarket[], tab: PropTab): Record<string, PropM
 
   const groups: Record<string, PropMarket[]> = {};
   for (const p of filtered) {
-    const marketType = getMarketGroup(p.description);
+    const marketType = getMarketGroup(p.description, p.category);
     if (!groups[marketType]) groups[marketType] = [];
     groups[marketType].push(p);
   }
   return groups;
 }
 
-function getMarketGroup(desc: string): string {
+function getMarketGroup(desc: string, category: string): string {
   const lower = desc.toLowerCase();
-  if (lower.includes('home run')) return 'Player Home Runs';
-  if (lower.includes('batter hits') || (lower.includes('hits') && !lower.includes('total hits'))) return 'Player Hits';
-  if (lower.includes('total bases')) return 'Player Total Bases';
-  if (lower.includes('rbis') || lower.includes('rbi')) return 'Player RBIs';
-  if (lower.includes('runs scored') && lower.includes('batter')) return 'Player Runs Scored';
-  if (lower.includes('strikeout')) return 'Strikeouts';
-  if (lower.includes('pitcher out')) return 'Pitcher Outs';
-  if (lower.includes('player point')) return 'Points';
-  if (lower.includes('player rebound')) return 'Rebounds';
-  if (lower.includes('player assist')) return 'Assists';
-  if (lower.includes('run scored in')) return 'Innings - Run Scored';
-  if (lower.includes('total run') || lower.includes('total point') || lower.includes('total goal')) return 'Game Total';
+  if (lower.includes('home run') && lower.includes(' - ')) return 'Player Home Runs';
+  if (lower.includes('batter hits') || (lower.includes(' - ') && lower.includes('hits') && !lower.includes('total hits'))) return 'Player Hits';
+  if (lower.includes('total bases') && lower.includes(' - ')) return 'Player Total Bases';
+  if ((lower.includes('rbis') || lower.includes('rbi')) && lower.includes(' - ')) return 'Player RBIs';
+  if (lower.includes('runs scored') && lower.includes(' - ')) return 'Player Runs Scored';
+  if (lower.includes('strikeout') && lower.includes(' - ')) return 'Strikeouts';
+  if (lower.includes('pitcher out') && lower.includes(' - ')) return 'Pitcher Outs';
+  if (lower.includes('player point') && lower.includes(' - ')) return 'Points';
+  if (lower.includes('player rebound') && lower.includes(' - ')) return 'Rebounds';
+  if (lower.includes('player assist') && lower.includes(' - ')) return 'Assists';
+  if (lower.includes('run scored in')) return 'Innings';
   if (lower.includes('extra inning') || lower.includes('overtime')) return 'Extras';
+  if (lower.includes('home run') || lower.includes('grand slam')) return 'Home Runs';
+  if (lower.includes('scores first') || lower.includes('first basket') || lower.includes('first score') || lower.includes('goal in first')) return 'First/Last';
+  if (lower.includes('total')) return 'Game Totals';
+  if (category === 'Game Props' || category === 'Fight Props' || category === 'Match Props') return 'Game Props';
+  if (category === 'Scoring Props') return 'Scoring';
   return 'Other';
 }
 
