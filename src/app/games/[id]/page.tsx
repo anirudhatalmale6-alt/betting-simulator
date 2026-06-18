@@ -136,7 +136,10 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
     try {
       const data = await api.getGame(id);
       setGame(data.game);
-      const tabs = getAvailableTabs(data.game.propMarkets, data.game.sport.key);
+      const available = data.game.propMarkets.filter(
+        (p: PropMarket) => p.category !== 'Spread' && p.category !== 'Game Totals' && !p.settled
+      );
+      const tabs = getAvailableTabs(available, data.game.sport.key);
       if (tabs.length > 0) setActiveTab(tabs[0].key);
     } catch {
       console.error('Failed to fetch game');
