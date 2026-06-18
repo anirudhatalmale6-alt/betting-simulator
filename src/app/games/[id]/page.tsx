@@ -35,13 +35,14 @@ interface Game {
   propMarkets: PropMarket[];
 }
 
-type PropTab = 'batting' | 'pitching' | 'game' | 'all';
+type PropTab = 'batting' | 'pitching' | 'game' | 'innings' | 'all';
 
 function getAvailableTabs(props: PropMarket[], sportKey: string): { key: PropTab; label: string }[] {
   const hasBatting = props.some(p => p.category === 'Batter Props');
   const hasPitching = props.some(p => p.category === 'Pitcher Props');
   const hasPlayer = props.some(p => p.category === 'Player Props');
   const hasGame = props.some(p => ['Game Props', 'First/Last', 'Fight Props', 'Match Props', 'Tournament Props', 'Matchup Props', 'Scoring Props'].includes(p.category));
+  const hasInnings = sportKey.startsWith('baseball') && props.some(p => p.description.toLowerCase().includes('inning'));
 
   const tabs: { key: PropTab; label: string }[] = [];
 
@@ -51,20 +52,27 @@ function getAvailableTabs(props: PropMarket[], sportKey: string): { key: PropTab
   } else if (hasPlayer) {
     tabs.push({ key: 'batting', label: 'Player Props' });
   }
+  if (hasInnings) tabs.push({ key: 'innings', label: 'Innings' });
   if (hasGame) tabs.push({ key: 'game', label: 'Game Props' });
   if (tabs.length === 0 && props.length > 0) tabs.push({ key: 'all', label: 'All Props' });
 
   return tabs;
 }
 
-function getPropsForTab(props: PropMarket[], tab: PropTab): Record<string, PropMarket[]> {
+function getPropsForTab(props: PropMarket[], tab: PropTab, sportKey: string): Record<string, PropMarket[]> {
   let filtered: PropMarket[];
+  const isInningProp = (p: PropMarket) => p.description.toLowerCase().includes('inning');
   if (tab === 'batting') {
     filtered = props.filter(p => p.category === 'Batter Props' || p.category === 'Player Props');
   } else if (tab === 'pitching') {
     filtered = props.filter(p => p.category === 'Pitcher Props');
+  } else if (tab === 'innings') {
+    filtered = props.filter(p => isInningProp(p));
   } else if (tab === 'game') {
     filtered = props.filter(p => ['Game Props', 'First/Last', 'Fight Props', 'Match Props', 'Tournament Props', 'Matchup Props', 'Scoring Props'].includes(p.category));
+    if (sportKey.startsWith('baseball')) {
+      filtered = filtered.filter(p => !isInningProp(p));
+    }
   } else {
     filtered = props;
   }
@@ -146,9 +154,9 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
   if (!game) return <div className="text-center py-20 text-gray-400">Game not found</div>;
 
   const gameLabel = `${game.homeTeam} vs ${game.awayTeam}`;
-  const nonMetaProps = game.propMarkets.filter(p => p.category !== 'Spread' && p.category !== 'Game Totals');
+  const nonMetaProps = game.propMarkets.filter(p => p.category !== 'Spread' && p.category !== 'Game Totals' && !p.settled);
   const tabs = getAvailableTabs(nonMetaProps, game.sport.key);
-  const groupedProps = getPropsForTab(nonMetaProps, activeTab);
+  const groupedProps = getPropsForTab(nonMetaProps, activeTab, game.sport.key);
 
   const handleAddToSlip = (pick: string, odds: number, label: string, propId?: string) => {
     const slipId = propId ? `${propId}_${pick}` : `${game.id}_${pick}`;
@@ -179,12 +187,19 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
           <div className="flex items-center justify-between mb-6">
             <div className="flex-1 text-center">
               <div className="font-bold text-lg text-white">{game.homeTeam}</div>
-              {(isLive || isCompleted) && <div className="text-4xl font-bold text-white mt-2">{game.homeScore}</div>}
+              {isCompleted && <div className="text-4xl font-bold text-white mt-2">{game.homeScore}</div>}
             </div>
-            <div className="text-gray-500 font-medium px-6">VS</div>
+            <div className="text-gray-500 font-medium px-6">
+              {isLive ? (
+                <span className="text-emerald-400 text-sm font-semibold flex flex-col items-center gap-1">
+                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                  LIVE
+                </span>
+              ) : 'VS'}
+            </div>
             <div className="flex-1 text-center">
               <div className="font-bold text-lg text-white">{game.awayTeam}</div>
-              {(isLive || isCompleted) && <div className="text-4xl font-bold text-white mt-2">{game.awayScore}</div>}
+              {isCompleted && <div className="text-4xl font-bold text-white mt-2">{game.awayScore}</div>}
             </div>
           </div>
 

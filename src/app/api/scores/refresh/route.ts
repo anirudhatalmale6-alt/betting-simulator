@@ -4,25 +4,58 @@ import prisma from '@/lib/prisma';
 export const maxDuration = 30;
 
 const GAME_DURATIONS: Record<string, number> = {
-  baseball: 3 * 60,
-  basketball: 2.5 * 60,
-  americanfootball: 3.5 * 60,
-  icehockey: 2.5 * 60,
-  soccer: 2 * 60,
-  mma: 1.5 * 60,
-  boxing: 1.5 * 60,
-  tennis: 2.5 * 60,
-  golf: 5 * 60,
-  rugbyleague: 2 * 60,
-  cricket: 4 * 60,
-  aussierules: 2.5 * 60,
+  baseball: 4.5 * 60,
+  basketball: 3 * 60,
+  americanfootball: 4.5 * 60,
+  icehockey: 3 * 60,
+  soccer: 2.5 * 60,
+  mma: 4 * 60,
+  boxing: 3 * 60,
+  tennis: 4 * 60,
+  golf: 7 * 60,
+  rugbyleague: 2.5 * 60,
+  cricket: 6 * 60,
+  aussierules: 3 * 60,
 };
 
 function getEstimatedDuration(sportKey: string): number {
   for (const [prefix, mins] of Object.entries(GAME_DURATIONS)) {
     if (sportKey.startsWith(prefix)) return mins;
   }
-  return 3 * 60;
+  return 4 * 60;
+}
+
+function generateFinalScores(sportKey: string): { homeScore: number; awayScore: number } {
+  const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  if (sportKey.startsWith('baseball')) {
+    let home = rand(1, 8);
+    let away = rand(1, 8);
+    if (home === away) home += rand(0, 1) === 0 ? 1 : -1;
+    return { homeScore: Math.max(0, home), awayScore: Math.max(0, away) };
+  }
+  if (sportKey.startsWith('basketball')) {
+    let home = rand(85, 115);
+    let away = rand(85, 115);
+    if (home === away) home += rand(1, 4);
+    return { homeScore: home, awayScore: away };
+  }
+  if (sportKey.startsWith('americanfootball')) {
+    const home = rand(2, 5) * 7 + rand(0, 2) * 3;
+    const away = rand(2, 5) * 7 + rand(0, 2) * 3;
+    return { homeScore: home, awayScore: away };
+  }
+  if (sportKey.startsWith('icehockey')) {
+    let home = rand(1, 5);
+    let away = rand(1, 5);
+    if (home === away) away += rand(0, 1) === 0 ? 1 : -1;
+    return { homeScore: Math.max(0, home), awayScore: Math.max(0, away) };
+  }
+  if (sportKey.startsWith('soccer')) {
+    return { homeScore: rand(0, 3), awayScore: rand(0, 3) };
+  }
+  const homeWins = Math.random() > 0.5;
+  return { homeScore: homeWins ? 1 : 0, awayScore: homeWins ? 0 : 1 };
 }
 
 export async function POST() {
@@ -32,30 +65,51 @@ export async function POST() {
     let gamesCompleted = 0;
     let betsSettled = 0;
 
-    const upcomingStarted = await prisma.game.updateMany({
-      where: {
-        status: 'upcoming',
-        startTime: { lte: now },
-      },
-      data: { status: 'live' },
+    const gamesToStart = await prisma.game.findMany({
+      where: { status: 'upcoming', startTime: { lte: now } },
+      select: { id: true },
     });
-    gamesStarted = upcomingStarted.count;
+    const justStartedIds = gamesToStart.map(g => g.id);
+
+    if (justStartedIds.length > 0) {
+      await prisma.game.updateMany({
+        where: { id: { in: justStartedIds } },
+        data: { status: 'live', lastScoreUpdate: now },
+      });
+      gamesStarted = justStartedIds.length;
+    }
+
+    const propsLocked = await prisma.propMarket.updateMany({
+      where: {
+        game: { status: 'live' },
+        category: { in: ['Batter Props', 'Pitcher Props', 'Player Props'] },
+        settled: false,
+      },
+      data: { settled: true },
+    });
 
     const liveGames = await prisma.game.findMany({
-      where: { status: 'live' },
+      where: {
+        status: 'live',
+        id: { notIn: justStartedIds },
+      },
       include: { sport: true },
     });
 
     for (const game of liveGames) {
       const durationMins = getEstimatedDuration(game.sport.key);
       const estimatedEnd = new Date(game.startTime.getTime() + durationMins * 60 * 1000);
+      const minLiveTime = new Date((game.lastScoreUpdate || game.updatedAt).getTime() + 60 * 60 * 1000);
 
-      if (now >= estimatedEnd) {
+      if (now >= estimatedEnd && now >= minLiveTime) {
+        const scores = generateFinalScores(game.sport.key);
         await prisma.game.update({
           where: { id: game.id },
           data: {
             status: 'completed',
             bettingLocked: true,
+            homeScore: scores.homeScore,
+            awayScore: scores.awayScore,
           },
         });
 
@@ -73,9 +127,17 @@ export async function POST() {
           { parlayLegs: { some: { status: 'pending' } } },
         ],
       },
+      include: { sport: true },
     });
 
     for (const game of completedWithPendingBets) {
+      if (game.homeScore === 0 && game.awayScore === 0) {
+        const scores = generateFinalScores(game.sport.key);
+        await prisma.game.update({
+          where: { id: game.id },
+          data: { homeScore: scores.homeScore, awayScore: scores.awayScore },
+        });
+      }
       const settled = await settleGameBets(game.id);
       betsSettled += settled;
     }
@@ -84,6 +146,7 @@ export async function POST() {
       gamesStarted,
       gamesCompleted,
       betsSettled,
+      propsLocked: propsLocked.count,
       retroSettled: completedWithPendingBets.length,
     });
   } catch (error) {

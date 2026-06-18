@@ -39,8 +39,7 @@ export default function RegisterPage() {
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
       <div className="w-full max-w-md">
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-8">
-          <h1 className="text-2xl font-bold text-center mb-2">Create Account</h1>
-          <p className="text-gray-400 text-center text-sm mb-6">Start with $1,000 in play money</p>
+          <h1 className="text-2xl font-bold text-center mb-6">Create Account</h1>
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg p-3 mb-4">
