@@ -268,7 +268,8 @@ async function handlePlayerProps(apiKey: string) {
         where: { gameId: game.id, category: { in: ['Game Props', 'First/Last', 'Fight Props', 'Match Props', 'Scoring Props'] } },
       });
       if (hasGameProps === 0) {
-        await generateMockProps(game.id, game.sport.key, hasPlayerProps > 0);
+        const skipPlayerProps = game.status === 'live' || hasPlayerProps > 0;
+        await generateMockProps(game.id, game.sport.key, skipPlayerProps);
         gamePropsGenerated++;
       }
     } catch {
