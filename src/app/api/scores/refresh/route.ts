@@ -1,28 +1,31 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getOddsApiKey } from '@/lib/settings';
 
 export const maxDuration = 30;
 
+const SCORES_API = 'https://api.the-odds-api.com/v4';
+
 const GAME_DURATIONS: Record<string, number> = {
-  baseball: 4.5 * 60,
-  basketball: 3 * 60,
-  americanfootball: 4.5 * 60,
-  icehockey: 3 * 60,
-  soccer: 2.5 * 60,
-  mma: 4 * 60,
-  boxing: 3 * 60,
-  tennis: 4 * 60,
-  golf: 7 * 60,
-  rugbyleague: 2.5 * 60,
-  cricket: 6 * 60,
-  aussierules: 3 * 60,
+  baseball: 3.5 * 60,
+  basketball: 2.5 * 60,
+  americanfootball: 3.5 * 60,
+  icehockey: 2.5 * 60,
+  soccer: 2 * 60,
+  mma: 3 * 60,
+  boxing: 2.5 * 60,
+  tennis: 3 * 60,
+  golf: 6 * 60,
+  rugbyleague: 2 * 60,
+  cricket: 5 * 60,
+  aussierules: 2.5 * 60,
 };
 
 function getEstimatedDuration(sportKey: string): number {
   for (const [prefix, mins] of Object.entries(GAME_DURATIONS)) {
     if (sportKey.startsWith(prefix)) return mins;
   }
-  return 4 * 60;
+  return 3 * 60;
 }
 
 function generateFinalScores(sportKey: string): { homeScore: number; awayScore: number } {
@@ -64,7 +67,9 @@ export async function POST() {
     let gamesStarted = 0;
     let gamesCompleted = 0;
     let betsSettled = 0;
+    let apiScoresUpdated = 0;
 
+    // Step 1: Transition upcoming games to live
     const gamesToStart = await prisma.game.findMany({
       where: { status: 'upcoming', startTime: { lte: now } },
       select: { id: true },
@@ -79,6 +84,7 @@ export async function POST() {
       gamesStarted = justStartedIds.length;
     }
 
+    // Step 2: Lock player props for live games
     const propsLocked = await prisma.propMarket.updateMany({
       where: {
         game: { status: 'live' },
@@ -88,6 +94,68 @@ export async function POST() {
       data: { settled: true },
     });
 
+    // Step 3: API-based score sync (runs at most every 5 minutes)
+    const apiKey = await getOddsApiKey();
+    if (apiKey) {
+      const lastSync = await getSettingValue('last_scores_sync');
+      const lastSyncTime = lastSync ? new Date(lastSync) : new Date(0);
+      const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+      if (lastSyncTime < fiveMinAgo) {
+        const liveForSync = await prisma.game.findMany({
+          where: { status: 'live' },
+          include: { sport: true },
+        });
+
+        const sportKeys = [...new Set(liveForSync.map(g => g.sport.key))];
+
+        for (const sportKey of sportKeys) {
+          try {
+            const url = `${SCORES_API}/sports/${sportKey}/scores?apiKey=${apiKey}&daysFrom=2`;
+            const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+            if (!res.ok) continue;
+
+            const events = await res.json();
+            const remaining = res.headers.get('x-requests-remaining');
+            if (remaining) await saveSetting('api_credits_remaining', remaining);
+
+            for (const event of events) {
+              const game = await prisma.game.findUnique({ where: { externalId: event.id } });
+              if (!game || game.status === 'completed') continue;
+
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const updateData: any = {};
+
+              if (event.scores && Array.isArray(event.scores)) {
+                const homeSc = event.scores.find((s: { name: string; score: string }) => s.name === event.home_team);
+                const awaySc = event.scores.find((s: { name: string; score: string }) => s.name === event.away_team);
+                if (homeSc) updateData.homeScore = parseInt(homeSc.score) || 0;
+                if (awaySc) updateData.awayScore = parseInt(awaySc.score) || 0;
+                updateData.lastScoreUpdate = now;
+              }
+
+              if (event.completed && game.status !== 'completed') {
+                updateData.status = 'completed';
+                updateData.bettingLocked = true;
+                await prisma.game.update({ where: { id: game.id }, data: updateData });
+                const settled = await settleGameBets(game.id);
+                betsSettled += settled;
+                gamesCompleted++;
+              } else if (Object.keys(updateData).length > 0) {
+                await prisma.game.update({ where: { id: game.id }, data: updateData });
+              }
+              apiScoresUpdated++;
+            }
+          } catch {
+            // skip sport on error
+          }
+        }
+
+        await saveSetting('last_scores_sync', now.toISOString());
+      }
+    }
+
+    // Step 4: Time-based fallback completion (for games the API might miss or when no API key)
     const liveGames = await prisma.game.findMany({
       where: {
         status: 'live',
@@ -99,19 +167,26 @@ export async function POST() {
     for (const game of liveGames) {
       const durationMins = getEstimatedDuration(game.sport.key);
       const estimatedEnd = new Date(game.startTime.getTime() + durationMins * 60 * 1000);
-      const minLiveTime = new Date((game.lastScoreUpdate || game.updatedAt).getTime() + 60 * 60 * 1000);
+      const minLiveTime = new Date((game.lastScoreUpdate || game.updatedAt).getTime() + 15 * 60 * 1000);
 
       if (now >= estimatedEnd && now >= minLiveTime) {
-        const scores = generateFinalScores(game.sport.key);
-        await prisma.game.update({
-          where: { id: game.id },
-          data: {
-            status: 'completed',
-            bettingLocked: true,
-            homeScore: scores.homeScore,
-            awayScore: scores.awayScore,
-          },
-        });
+        if (game.homeScore === 0 && game.awayScore === 0) {
+          const scores = generateFinalScores(game.sport.key);
+          await prisma.game.update({
+            where: { id: game.id },
+            data: {
+              status: 'completed',
+              bettingLocked: true,
+              homeScore: scores.homeScore,
+              awayScore: scores.awayScore,
+            },
+          });
+        } else {
+          await prisma.game.update({
+            where: { id: game.id },
+            data: { status: 'completed', bettingLocked: true },
+          });
+        }
 
         const settled = await settleGameBets(game.id);
         betsSettled += settled;
@@ -119,6 +194,7 @@ export async function POST() {
       }
     }
 
+    // Step 5: Retro-settle completed games that still have pending bets
     const completedWithPendingBets = await prisma.game.findMany({
       where: {
         status: 'completed',
@@ -148,10 +224,32 @@ export async function POST() {
       betsSettled,
       propsLocked: propsLocked.count,
       retroSettled: completedWithPendingBets.length,
+      apiScoresUpdated,
     });
   } catch (error) {
     console.error('Score refresh error:', error);
     return NextResponse.json({ error: 'Failed to refresh scores' }, { status: 500 });
+  }
+}
+
+async function getSettingValue(key: string): Promise<string | null> {
+  try {
+    const setting = await prisma.setting.findUnique({ where: { key } });
+    return setting?.value || null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveSetting(key: string, value: string) {
+  try {
+    await prisma.setting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    });
+  } catch {
+    // table might not exist yet
   }
 }
 

@@ -105,8 +105,8 @@ export default function GameCard({ game }: { game: Game; onBetPlaced?: () => voi
         <div className="flex items-center justify-between mb-4">
           <div className="flex-1 text-center">
             <div className="font-semibold text-white text-sm">{game.homeTeam}</div>
-            {isCompleted && (
-              <div className="text-2xl font-bold text-white mt-1">{game.homeScore}</div>
+            {(isLive || isCompleted) && (game.homeScore > 0 || game.awayScore > 0) && (
+              <div className={`text-2xl font-bold mt-1 ${isLive ? 'text-emerald-400' : 'text-white'}`}>{game.homeScore}</div>
             )}
           </div>
           <div className="text-gray-500 text-sm font-medium px-4">
@@ -119,8 +119,8 @@ export default function GameCard({ game }: { game: Game; onBetPlaced?: () => voi
           </div>
           <div className="flex-1 text-center">
             <div className="font-semibold text-white text-sm">{game.awayTeam}</div>
-            {isCompleted && (
-              <div className="text-2xl font-bold text-white mt-1">{game.awayScore}</div>
+            {(isLive || isCompleted) && (game.homeScore > 0 || game.awayScore > 0) && (
+              <div className={`text-2xl font-bold mt-1 ${isLive ? 'text-emerald-400' : 'text-white'}`}>{game.awayScore}</div>
             )}
           </div>
         </div>

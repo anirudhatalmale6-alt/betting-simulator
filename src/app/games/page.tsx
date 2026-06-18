@@ -56,7 +56,15 @@ export default function GamesPage() {
   }, [selectedSport, selectedStatus]);
 
   useEffect(() => {
-    fetchGames();
+    const init = async () => {
+      try {
+        await api.refreshScores();
+      } catch {
+        // silent
+      }
+      await fetchGames();
+    };
+    init();
     const interval = setInterval(async () => {
       try {
         await api.refreshScores();

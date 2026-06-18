@@ -190,7 +190,9 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
           <div className="flex items-center justify-between mb-6">
             <div className="flex-1 text-center">
               <div className="font-bold text-lg text-white">{game.homeTeam}</div>
-              {isCompleted && <div className="text-4xl font-bold text-white mt-2">{game.homeScore}</div>}
+              {(isLive || isCompleted) && (game.homeScore > 0 || game.awayScore > 0) && (
+                <div className={`text-4xl font-bold mt-2 ${isLive ? 'text-emerald-400' : 'text-white'}`}>{game.homeScore}</div>
+              )}
             </div>
             <div className="text-gray-500 font-medium px-6">
               {isLive ? (
@@ -202,7 +204,9 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
             </div>
             <div className="flex-1 text-center">
               <div className="font-bold text-lg text-white">{game.awayTeam}</div>
-              {isCompleted && <div className="text-4xl font-bold text-white mt-2">{game.awayScore}</div>}
+              {(isLive || isCompleted) && (game.homeScore > 0 || game.awayScore > 0) && (
+                <div className={`text-4xl font-bold mt-2 ${isLive ? 'text-emerald-400' : 'text-white'}`}>{game.awayScore}</div>
+              )}
             </div>
           </div>
 
