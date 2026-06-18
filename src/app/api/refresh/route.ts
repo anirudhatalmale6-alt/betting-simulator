@@ -181,8 +181,10 @@ async function handlePlayerProps(apiKey: string) {
 
   const todayGames = await prisma.game.findMany({
     where: {
-      startTime: { gte: now, lte: tomorrow },
-      status: { in: ['upcoming', 'live'] },
+      OR: [
+        { startTime: { gte: now, lte: tomorrow }, status: 'upcoming' },
+        { status: 'live' },
+      ],
     },
     include: { sport: true },
   });
@@ -192,6 +194,7 @@ async function handlePlayerProps(apiKey: string) {
   const errors: string[] = [];
 
   for (const game of todayGames) {
+    if (game.status === 'live') continue;
     const markets = PLAYER_PROP_MARKETS[game.sport.key];
     if (!markets || markets.length === 0) continue;
 
