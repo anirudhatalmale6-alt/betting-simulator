@@ -28,6 +28,34 @@ function getEstimatedDuration(sportKey: string): number {
   return 3 * 60;
 }
 
+function calculateLiveOdds(homeScore: number, awayScore: number, sportKey: string): { homeOdds: number; awayOdds: number } | null {
+  const diff = homeScore - awayScore;
+  if (diff === 0) return null;
+
+  let k: number;
+  if (sportKey.startsWith('baseball')) k = 0.45;
+  else if (sportKey.startsWith('basketball')) k = 0.08;
+  else if (sportKey.startsWith('americanfootball')) k = 0.12;
+  else if (sportKey.startsWith('icehockey')) k = 0.65;
+  else if (sportKey.startsWith('soccer')) k = 1.1;
+  else if (sportKey.startsWith('mma') || sportKey.startsWith('boxing')) k = 2.0;
+  else if (sportKey.startsWith('tennis')) k = 0.4;
+  else if (sportKey.startsWith('aussierules')) k = 0.04;
+  else if (sportKey.startsWith('rugby')) k = 0.06;
+  else k = 0.3;
+
+  const homeProb = Math.min(0.98, Math.max(0.02, 1 / (1 + Math.exp(-k * diff))));
+  return {
+    homeOdds: probToAmerican(homeProb),
+    awayOdds: probToAmerican(1 - homeProb),
+  };
+}
+
+function probToAmerican(prob: number): number {
+  if (prob >= 0.5) return Math.round(-100 * prob / (1 - prob));
+  return Math.round(100 * (1 - prob) / prob);
+}
+
 function generateFinalScores(sportKey: string): { homeScore: number; awayScore: number } {
   const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -84,11 +112,10 @@ export async function POST() {
       gamesStarted = justStartedIds.length;
     }
 
-    // Step 2: Lock player props for live games
+    // Step 2: Lock ALL props for live games (spreads, totals, innings, game props, player props)
     const propsLocked = await prisma.propMarket.updateMany({
       where: {
         game: { status: 'live' },
-        category: { in: ['Batter Props', 'Pitcher Props', 'Player Props'] },
         settled: false,
       },
       data: { settled: true },
@@ -132,6 +159,16 @@ export async function POST() {
                 if (homeSc) updateData.homeScore = parseInt(homeSc.score) || 0;
                 if (awaySc) updateData.awayScore = parseInt(awaySc.score) || 0;
                 updateData.lastScoreUpdate = now;
+
+                if (!event.completed) {
+                  const newHome = updateData.homeScore ?? game.homeScore;
+                  const newAway = updateData.awayScore ?? game.awayScore;
+                  const liveOdds = calculateLiveOdds(newHome, newAway, sportKey);
+                  if (liveOdds) {
+                    updateData.homeOdds = liveOdds.homeOdds;
+                    updateData.awayOdds = liveOdds.awayOdds;
+                  }
+                }
               }
 
               if (event.completed && game.status !== 'completed') {

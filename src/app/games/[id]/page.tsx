@@ -130,6 +130,8 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
 
   useEffect(() => {
     fetchGame();
+    const interval = setInterval(fetchGame, 30000);
+    return () => clearInterval(interval);
   }, [id]);
 
   const fetchGame = async () => {
@@ -244,7 +246,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
               </div>
 
-              {(() => {
+              {!isLive && (() => {
                 const spreadProps = game.propMarkets.filter(p => p.category === 'Spread');
                 if (spreadProps.length === 0) return null;
                 return (
@@ -276,7 +278,7 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
                 );
               })()}
 
-              {(() => {
+              {!isLive && (() => {
                 const totalProps = game.propMarkets.filter(p => p.category === 'Game Totals');
                 if (totalProps.length === 0) return null;
                 return (
