@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getOddsApiKey } from '@/lib/settings';
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const SCORES_API = 'https://api.the-odds-api.com/v4';
 
@@ -96,6 +96,28 @@ export async function POST() {
     let gamesCompleted = 0;
     let betsSettled = 0;
     let apiScoresUpdated = 0;
+
+    // Step 0: Auto-refresh odds if stale (>6 hours since last refresh)
+    const apiKey0 = await getOddsApiKey();
+    if (apiKey0) {
+      const lastOddsRefresh = await getSettingValue('last_odds_refresh');
+      const lastRefreshTime = lastOddsRefresh ? new Date(lastOddsRefresh) : new Date(0);
+      const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+
+      if (lastRefreshTime < sixHoursAgo) {
+        try {
+          const baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : 'https://betnow2.vercel.app';
+          await fetch(`${baseUrl}/api/refresh`, {
+            method: 'POST',
+            signal: AbortSignal.timeout(50000),
+          });
+        } catch {
+          // auto-refresh failed, will retry next cycle
+        }
+      }
+    }
 
     // Step 1: Transition upcoming games to live
     const gamesToStart = await prisma.game.findMany({
