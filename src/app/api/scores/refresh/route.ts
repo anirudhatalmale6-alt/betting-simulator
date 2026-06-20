@@ -28,11 +28,22 @@ function getEstimatedDuration(sportKey: string): number {
   return 3 * 60;
 }
 
-function calculateLiveOdds(homeScore: number, awayScore: number, sportKey: string): { homeOdds: number; awayOdds: number } {
+function americanToProb(odds: number): number {
+  if (odds < 0) return Math.abs(odds) / (Math.abs(odds) + 100);
+  return 100 / (odds + 100);
+}
+
+function calculateLiveOdds(homeScore: number, awayScore: number, sportKey: string, currentHomeOdds: number, currentAwayOdds: number): { homeOdds: number; awayOdds: number } {
   const diff = homeScore - awayScore;
 
   if (diff === 0) {
-    return { homeOdds: -110, awayOdds: -110 };
+    // Tied: regress existing odds toward even, keeping ~40% of the pre-game edge
+    const currentProb = americanToProb(currentHomeOdds);
+    const adjusted = Math.min(0.75, Math.max(0.25, 0.5 + (currentProb - 0.5) * 0.4));
+    return {
+      homeOdds: probToAmerican(adjusted),
+      awayOdds: probToAmerican(1 - adjusted),
+    };
   }
 
   let k: number;
@@ -188,7 +199,7 @@ export async function POST() {
                 if (!event.completed) {
                   const newHome = updateData.homeScore ?? game.homeScore;
                   const newAway = updateData.awayScore ?? game.awayScore;
-                  const liveOdds = calculateLiveOdds(newHome, newAway, sportKey);
+                  const liveOdds = calculateLiveOdds(newHome, newAway, sportKey, game.homeOdds, game.awayOdds);
                   updateData.homeOdds = liveOdds.homeOdds;
                   updateData.awayOdds = liveOdds.awayOdds;
                 }
