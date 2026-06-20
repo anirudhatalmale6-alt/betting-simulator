@@ -28,9 +28,12 @@ function getEstimatedDuration(sportKey: string): number {
   return 3 * 60;
 }
 
-function calculateLiveOdds(homeScore: number, awayScore: number, sportKey: string): { homeOdds: number; awayOdds: number } | null {
+function calculateLiveOdds(homeScore: number, awayScore: number, sportKey: string): { homeOdds: number; awayOdds: number } {
   const diff = homeScore - awayScore;
-  if (diff === 0) return null;
+
+  if (diff === 0) {
+    return { homeOdds: -110, awayOdds: -110 };
+  }
 
   let k: number;
   if (sportKey.startsWith('baseball')) k = 0.45;
@@ -186,10 +189,8 @@ export async function POST() {
                   const newHome = updateData.homeScore ?? game.homeScore;
                   const newAway = updateData.awayScore ?? game.awayScore;
                   const liveOdds = calculateLiveOdds(newHome, newAway, sportKey);
-                  if (liveOdds) {
-                    updateData.homeOdds = liveOdds.homeOdds;
-                    updateData.awayOdds = liveOdds.awayOdds;
-                  }
+                  updateData.homeOdds = liveOdds.homeOdds;
+                  updateData.awayOdds = liveOdds.awayOdds;
                 }
               }
 

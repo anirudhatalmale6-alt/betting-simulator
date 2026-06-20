@@ -9,7 +9,7 @@ import BetSlip from "@/components/BetSlip";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "BetNow - Sports Betting Simulator",
+  title: "BetNow",
   description: "Experience sports betting with play money",
 };
 
