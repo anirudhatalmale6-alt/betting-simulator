@@ -28,48 +28,6 @@ function getEstimatedDuration(sportKey: string): number {
   return 3 * 60;
 }
 
-function americanToProb(odds: number): number {
-  if (odds < 0) return Math.abs(odds) / (Math.abs(odds) + 100);
-  return 100 / (odds + 100);
-}
-
-function calculateLiveOdds(homeScore: number, awayScore: number, sportKey: string, currentHomeOdds: number, currentAwayOdds: number): { homeOdds: number; awayOdds: number } {
-  const diff = homeScore - awayScore;
-
-  if (diff === 0) {
-    // Tied: regress existing odds toward even, keeping ~40% of the pre-game edge
-    const currentProb = americanToProb(currentHomeOdds);
-    const adjusted = Math.min(0.75, Math.max(0.25, 0.5 + (currentProb - 0.5) * 0.4));
-    return {
-      homeOdds: probToAmerican(adjusted),
-      awayOdds: probToAmerican(1 - adjusted),
-    };
-  }
-
-  let k: number;
-  if (sportKey.startsWith('baseball')) k = 1.05;
-  else if (sportKey.startsWith('basketball')) k = 0.12;
-  else if (sportKey.startsWith('americanfootball')) k = 0.18;
-  else if (sportKey.startsWith('icehockey')) k = 1.2;
-  else if (sportKey.startsWith('soccer')) k = 1.5;
-  else if (sportKey.startsWith('mma') || sportKey.startsWith('boxing')) k = 2.0;
-  else if (sportKey.startsWith('tennis')) k = 0.6;
-  else if (sportKey.startsWith('aussierules')) k = 0.06;
-  else if (sportKey.startsWith('rugby')) k = 0.1;
-  else k = 0.5;
-
-  const homeProb = Math.min(0.98, Math.max(0.02, 1 / (1 + Math.exp(-k * diff))));
-  return {
-    homeOdds: probToAmerican(homeProb),
-    awayOdds: probToAmerican(1 - homeProb),
-  };
-}
-
-function probToAmerican(prob: number): number {
-  if (prob >= 0.5) return Math.round(-100 * prob / (1 - prob));
-  return Math.round(100 * (1 - prob) / prob);
-}
-
 function generateFinalScores(sportKey: string): { homeScore: number; awayScore: number } {
   const rand = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -195,14 +153,6 @@ export async function POST() {
                 if (homeSc) updateData.homeScore = parseInt(homeSc.score) || 0;
                 if (awaySc) updateData.awayScore = parseInt(awaySc.score) || 0;
                 updateData.lastScoreUpdate = now;
-
-                if (!event.completed) {
-                  const newHome = updateData.homeScore ?? game.homeScore;
-                  const newAway = updateData.awayScore ?? game.awayScore;
-                  const liveOdds = calculateLiveOdds(newHome, newAway, sportKey, game.homeOdds, game.awayOdds);
-                  updateData.homeOdds = liveOdds.homeOdds;
-                  updateData.awayOdds = liveOdds.awayOdds;
-                }
               }
 
               if (event.completed && game.status !== 'completed') {
@@ -223,6 +173,54 @@ export async function POST() {
         }
 
         await saveSetting('last_scores_sync', now.toISOString());
+
+        // Fetch live h2h odds from API for sports with live games (every 10 min)
+        const lastLiveOddsSync = await getSettingValue('last_live_odds_sync');
+        const lastLiveOddsTime = lastLiveOddsSync ? new Date(lastLiveOddsSync) : new Date(0);
+        const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000);
+
+        if (lastLiveOddsTime < tenMinAgo && sportKeys.length > 0) {
+          for (const sportKey of sportKeys) {
+            try {
+              const oddsUrl = `${SCORES_API}/sports/${sportKey}/odds?apiKey=${apiKey}&regions=us&markets=h2h&oddsFormat=american`;
+              const oddsRes = await fetch(oddsUrl, { signal: AbortSignal.timeout(8000) });
+              if (!oddsRes.ok) continue;
+
+              const oddsEvents = await oddsRes.json();
+              const rem = oddsRes.headers.get('x-requests-remaining');
+              if (rem) await saveSetting('api_credits_remaining', rem);
+
+              for (const event of oddsEvents) {
+                const game = await prisma.game.findUnique({ where: { externalId: event.id } });
+                if (!game || game.status === 'completed') continue;
+
+                const preferred = ['fanduel', 'draftkings'];
+                const bookmaker = event.bookmakers?.find((b: { key: string }) => preferred.includes(b.key)) || event.bookmakers?.[0];
+                if (!bookmaker) continue;
+
+                const h2h = bookmaker.markets?.find((m: { key: string }) => m.key === 'h2h');
+                if (!h2h) continue;
+
+                const outcomes = h2h.outcomes || [];
+                const homeOutcome = outcomes.find((o: { name: string }) => o.name === event.home_team);
+                const awayOutcome = outcomes.find((o: { name: string }) => o.name === event.away_team);
+
+                if (homeOutcome && awayOutcome) {
+                  await prisma.game.update({
+                    where: { id: game.id },
+                    data: {
+                      homeOdds: homeOutcome.price,
+                      awayOdds: awayOutcome.price,
+                    },
+                  });
+                }
+              }
+            } catch {
+              // skip sport on error
+            }
+          }
+          await saveSetting('last_live_odds_sync', now.toISOString());
+        }
       }
     }
 
