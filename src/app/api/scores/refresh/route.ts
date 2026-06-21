@@ -47,16 +47,16 @@ function calculateLiveOdds(homeScore: number, awayScore: number, sportKey: strin
   }
 
   let k: number;
-  if (sportKey.startsWith('baseball')) k = 0.45;
-  else if (sportKey.startsWith('basketball')) k = 0.08;
-  else if (sportKey.startsWith('americanfootball')) k = 0.12;
-  else if (sportKey.startsWith('icehockey')) k = 0.65;
-  else if (sportKey.startsWith('soccer')) k = 1.1;
+  if (sportKey.startsWith('baseball')) k = 1.05;
+  else if (sportKey.startsWith('basketball')) k = 0.12;
+  else if (sportKey.startsWith('americanfootball')) k = 0.18;
+  else if (sportKey.startsWith('icehockey')) k = 1.2;
+  else if (sportKey.startsWith('soccer')) k = 1.5;
   else if (sportKey.startsWith('mma') || sportKey.startsWith('boxing')) k = 2.0;
-  else if (sportKey.startsWith('tennis')) k = 0.4;
-  else if (sportKey.startsWith('aussierules')) k = 0.04;
-  else if (sportKey.startsWith('rugby')) k = 0.06;
-  else k = 0.3;
+  else if (sportKey.startsWith('tennis')) k = 0.6;
+  else if (sportKey.startsWith('aussierules')) k = 0.06;
+  else if (sportKey.startsWith('rugby')) k = 0.1;
+  else k = 0.5;
 
   const homeProb = Math.min(0.98, Math.max(0.02, 1 / (1 + Math.exp(-k * diff))));
   return {
