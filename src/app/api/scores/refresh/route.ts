@@ -120,9 +120,9 @@ export async function POST() {
     if (apiKey) {
       const lastSync = await getSettingValue('last_scores_sync');
       const lastSyncTime = lastSync ? new Date(lastSync) : new Date(0);
-      const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      const twoMinAgo = new Date(now.getTime() - 2 * 60 * 1000);
 
-      if (lastSyncTime < fiveMinAgo) {
+      if (lastSyncTime < twoMinAgo) {
         const liveForSync = await prisma.game.findMany({
           where: { status: 'live' },
           include: { sport: true },
@@ -174,12 +174,12 @@ export async function POST() {
 
         await saveSetting('last_scores_sync', now.toISOString());
 
-        // Fetch live h2h odds from API for sports with live games (every 10 min)
+        // Fetch live h2h odds from API for sports with live games (every 3 min)
         const lastLiveOddsSync = await getSettingValue('last_live_odds_sync');
         const lastLiveOddsTime = lastLiveOddsSync ? new Date(lastLiveOddsSync) : new Date(0);
-        const tenMinAgo = new Date(now.getTime() - 10 * 60 * 1000);
+        const threeMinAgo = new Date(now.getTime() - 3 * 60 * 1000);
 
-        if (lastLiveOddsTime < tenMinAgo && sportKeys.length > 0) {
+        if (lastLiveOddsTime < threeMinAgo && sportKeys.length > 0) {
           for (const sportKey of sportKeys) {
             try {
               const oddsUrl = `${SCORES_API}/sports/${sportKey}/odds?apiKey=${apiKey}&regions=us&markets=h2h&oddsFormat=american`;
