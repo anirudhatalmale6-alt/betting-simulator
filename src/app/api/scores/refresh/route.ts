@@ -101,7 +101,7 @@ export async function POST() {
     if (justStartedIds.length > 0) {
       await prisma.game.updateMany({
         where: { id: { in: justStartedIds } },
-        data: { status: 'live', lastScoreUpdate: now },
+        data: { status: 'live', lastScoreUpdate: now, bettingLocked: true },
       });
       gamesStarted = justStartedIds.length;
     }
@@ -174,53 +174,6 @@ export async function POST() {
 
         await saveSetting('last_scores_sync', now.toISOString());
 
-        // Fetch live h2h odds from API for sports with live games (every 3 min)
-        const lastLiveOddsSync = await getSettingValue('last_live_odds_sync');
-        const lastLiveOddsTime = lastLiveOddsSync ? new Date(lastLiveOddsSync) : new Date(0);
-        const threeMinAgo = new Date(now.getTime() - 3 * 60 * 1000);
-
-        if (lastLiveOddsTime < threeMinAgo && sportKeys.length > 0) {
-          for (const sportKey of sportKeys) {
-            try {
-              const oddsUrl = `${SCORES_API}/sports/${sportKey}/odds?apiKey=${apiKey}&regions=us&markets=h2h&oddsFormat=american`;
-              const oddsRes = await fetch(oddsUrl, { signal: AbortSignal.timeout(8000) });
-              if (!oddsRes.ok) continue;
-
-              const oddsEvents = await oddsRes.json();
-              const rem = oddsRes.headers.get('x-requests-remaining');
-              if (rem) await saveSetting('api_credits_remaining', rem);
-
-              for (const event of oddsEvents) {
-                const game = await prisma.game.findUnique({ where: { externalId: event.id } });
-                if (!game || game.status === 'completed') continue;
-
-                const preferred = ['fanduel', 'draftkings'];
-                const bookmaker = event.bookmakers?.find((b: { key: string }) => preferred.includes(b.key)) || event.bookmakers?.[0];
-                if (!bookmaker) continue;
-
-                const h2h = bookmaker.markets?.find((m: { key: string }) => m.key === 'h2h');
-                if (!h2h) continue;
-
-                const outcomes = h2h.outcomes || [];
-                const homeOutcome = outcomes.find((o: { name: string }) => o.name === event.home_team);
-                const awayOutcome = outcomes.find((o: { name: string }) => o.name === event.away_team);
-
-                if (homeOutcome && awayOutcome) {
-                  await prisma.game.update({
-                    where: { id: game.id },
-                    data: {
-                      homeOdds: homeOutcome.price,
-                      awayOdds: awayOutcome.price,
-                    },
-                  });
-                }
-              }
-            } catch {
-              // skip sport on error
-            }
-          }
-          await saveSetting('last_live_odds_sync', now.toISOString());
-        }
       }
     }
 

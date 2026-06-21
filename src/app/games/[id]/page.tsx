@@ -212,7 +212,13 @@ export default function GameDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
 
-          {canBet && (
+          {isLive && (
+            <div className="text-center py-4">
+              <span className="text-amber-400 text-sm font-medium">Betting locked - game in progress</span>
+            </div>
+          )}
+
+          {canBet && !isLive && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm text-gray-400 mb-2 uppercase tracking-wide">Moneyline</h3>

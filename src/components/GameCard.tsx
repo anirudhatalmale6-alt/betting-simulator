@@ -187,12 +187,12 @@ export default function GameCard({ game }: { game: Game; onBetPlaced?: () => voi
           </div>
         )}
 
-        {!isCompleted && (
+        {!isCompleted && !isLive && (
           <button
             onClick={() => router.push(`/games/${game.id}`)}
             className="w-full mt-1 py-2 text-xs text-emerald-400 hover:text-emerald-300 border border-gray-700 hover:border-emerald-500/30 rounded-lg transition-colors"
           >
-            {isLive ? 'View Live Odds →' : 'View All Props & Markets →'}
+            View All Props & Markets →
           </button>
         )}
       </div>
