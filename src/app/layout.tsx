@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { BetSlipProvider } from "@/components/BetSlipProvider";
 import Navbar from "@/components/Navbar";
 import BetSlip from "@/components/BetSlip";
+import TawkTo from "@/components/TawkTo";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {children}
             </main>
             <BetSlip />
+            <TawkTo />
           </BetSlipProvider>
         </AuthProvider>
       </body>

@@ -21,21 +21,26 @@ export default function Navbar() {
             <Link href="/" className="text-xl font-bold text-emerald-400 tracking-tight">
               BetNow
             </Link>
-            {user && (
-              <div className="hidden sm:flex items-center gap-4">
-                <Link href="/games" className="text-gray-300 hover:text-white text-sm transition-colors">
-                  Games
-                </Link>
-                <Link href="/dashboard" className="text-gray-300 hover:text-white text-sm transition-colors">
-                  My Bets
-                </Link>
-                {user.role === 'admin' && (
-                  <Link href="/admin" className="text-amber-400 hover:text-amber-300 text-sm transition-colors">
-                    Admin
+            <div className="hidden sm:flex items-center gap-4">
+              {user && (
+                <>
+                  <Link href="/games" className="text-gray-300 hover:text-white text-sm transition-colors">
+                    Games
                   </Link>
-                )}
-              </div>
-            )}
+                  <Link href="/dashboard" className="text-gray-300 hover:text-white text-sm transition-colors">
+                    My Bets
+                  </Link>
+                  {user.role === 'admin' && (
+                    <Link href="/admin" className="text-amber-400 hover:text-amber-300 text-sm transition-colors">
+                      Admin
+                    </Link>
+                  )}
+                </>
+              )}
+              <Link href="/contact" className="text-gray-300 hover:text-white text-sm transition-colors">
+                Contact
+              </Link>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             {user ? (
