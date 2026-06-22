@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 
-const PHONE_NUMBER = '';
-const PHONE_DISPLAY = '';
+const PHONE_NUMBER = '+13092654041';
+const PHONE_DISPLAY = '(309) 265-4041';
 
 export default function ContactPage() {
   const [name, setName] = useState('');

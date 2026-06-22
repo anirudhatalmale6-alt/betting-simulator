@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-const TAWK_PROPERTY_ID = '';
+const TAWK_PROPERTY_ID = '6a396cb6dbc2651d48d4bf67';
 const TAWK_WIDGET_ID = 'default';
 
 export default function TawkTo() {
