@@ -38,6 +38,7 @@ export const api = {
     fetchAPI('/api/parlays', { method: 'POST', body: JSON.stringify(data) }),
   getParlays: () => fetchAPI('/api/parlays'),
   refreshScores: () => fetchAPI('/api/scores/refresh', { method: 'POST' }),
+  refreshOdds: () => fetchAPI('/api/refresh', { method: 'POST' }),
   admin: {
     getUsers: () => fetchAPI('/api/admin/users'),
     updateUser: (data: { userId: string; balance?: number; role?: string }) =>

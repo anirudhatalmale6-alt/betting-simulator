@@ -40,6 +40,7 @@ export default function GamesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedSport, setSelectedSport] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [didAutoRefresh, setDidAutoRefresh] = useState(false);
 
   const fetchGames = useCallback(async () => {
     try {
@@ -48,12 +49,18 @@ export default function GamesPage() {
         ? data.games.filter((g: Game) => g.sport.key.startsWith(selectedSport))
         : data.games;
       setGames(filtered);
+      return filtered;
     } catch (error) {
       console.error('Failed to fetch games:', error);
+      return [];
     } finally {
       setLoading(false);
     }
   }, [selectedSport, selectedStatus]);
+
+  useEffect(() => {
+    setDidAutoRefresh(false);
+  }, [selectedSport]);
 
   useEffect(() => {
     const init = async () => {
@@ -62,7 +69,17 @@ export default function GamesPage() {
       } catch {
         // silent
       }
-      await fetchGames();
+      const fetched = await fetchGames();
+      const activeGames = (fetched as Game[]).filter((g: Game) => g.status === 'live' || g.status === 'upcoming');
+      if (activeGames.length === 0 && !didAutoRefresh) {
+        setDidAutoRefresh(true);
+        try {
+          await api.refreshOdds();
+          await fetchGames();
+        } catch {
+          // silent
+        }
+      }
     };
     init();
     const interval = setInterval(async () => {
@@ -74,7 +91,7 @@ export default function GamesPage() {
       }
     }, 60000);
     return () => clearInterval(interval);
-  }, [fetchGames]);
+  }, [fetchGames, didAutoRefresh]);
 
   const liveGames = games.filter(g => g.status === 'live');
   const upcomingGames = games.filter(g => g.status === 'upcoming');
