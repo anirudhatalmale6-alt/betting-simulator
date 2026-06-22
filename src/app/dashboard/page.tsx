@@ -52,7 +52,7 @@ interface Parlay {
 }
 
 export default function DashboardPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshUser } = useAuth();
   const router = useRouter();
   const [bets, setBets] = useState<Bet[]>([]);
   const [parlays, setParlays] = useState<Parlay[]>([]);
@@ -68,12 +68,18 @@ export default function DashboardPage() {
     if (!user) return;
     const fetchData = async () => {
       try {
+        await api.refreshScores();
+      } catch {
+        // silent
+      }
+      try {
         const [betsData, parlaysData] = await Promise.all([
           api.getMyBets(filter || undefined),
           api.getParlays(),
         ]);
         setBets(betsData.bets);
         setParlays(parlaysData.parlays);
+        await refreshUser();
       } catch {
         // silent
       } finally {
@@ -81,9 +87,9 @@ export default function DashboardPage() {
       }
     };
     fetchData();
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [user, filter]);
+  }, [user, filter, refreshUser]);
 
   if (authLoading || !user) return null;
 
