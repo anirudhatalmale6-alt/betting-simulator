@@ -2,6 +2,15 @@
 
 import { useState } from 'react';
 
+declare global {
+  interface Window {
+    Tawk_API?: {
+      maximize: () => void;
+      setAttributes: (attrs: Record<string, string>, cb?: (err: unknown) => void) => void;
+    };
+  }
+}
+
 const PHONE_NUMBER = '+13092654041';
 const PHONE_DISPLAY = '(309) 265-4041';
 
@@ -13,8 +22,10 @@ export default function ContactPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const smsBody = encodeURIComponent(`Name: ${name}\nEmail: ${email}\nMessage: ${message}`);
-    window.open(`sms:${PHONE_NUMBER}?body=${smsBody}`, '_self');
+    if (window.Tawk_API) {
+      window.Tawk_API.setAttributes({ name, email, message });
+      window.Tawk_API.maximize();
+    }
     setSent(true);
   };
 
@@ -34,22 +45,16 @@ export default function ContactPage() {
               <p className="text-sm text-gray-400">Send us a text message directly</p>
             </div>
           </div>
-          {PHONE_NUMBER ? (
-            <>
-              <div className="text-2xl font-bold text-emerald-400 mb-4">{PHONE_DISPLAY}</div>
-              <a
-                href={`sms:${PHONE_NUMBER}`}
-                className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                Send a Text
-              </a>
-            </>
-          ) : (
-            <p className="text-gray-500 italic">Phone number coming soon</p>
-          )}
+          <div className="text-2xl font-bold text-emerald-400 mb-4">{PHONE_DISPLAY}</div>
+          <a
+            href={`sms:${PHONE_NUMBER}`}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Send a Text
+          </a>
         </div>
 
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
@@ -62,22 +67,16 @@ export default function ContactPage() {
               <p className="text-sm text-gray-400">Give us a call anytime</p>
             </div>
           </div>
-          {PHONE_NUMBER ? (
-            <>
-              <div className="text-2xl font-bold text-emerald-400 mb-4">{PHONE_DISPLAY}</div>
-              <a
-                href={`tel:${PHONE_NUMBER}`}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                </svg>
-                Call Now
-              </a>
-            </>
-          ) : (
-            <p className="text-gray-500 italic">Phone number coming soon</p>
-          )}
+          <div className="text-2xl font-bold text-emerald-400 mb-4">{PHONE_DISPLAY}</div>
+          <a
+            href={`tel:${PHONE_NUMBER}`}
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+            </svg>
+            Call Now
+          </a>
         </div>
 
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
@@ -90,19 +89,29 @@ export default function ContactPage() {
               <p className="text-sm text-gray-400">Chat with us in real time</p>
             </div>
           </div>
-          <p className="text-sm text-gray-400 mt-2">
-            Click the chat bubble in the bottom-right corner of the screen to start a live chat with our support team.
+          <p className="text-sm text-gray-400 mt-2 mb-4">
+            Chat with our support team instantly. Click below or use the chat bubble in the bottom-right corner.
           </p>
+          <button
+            onClick={() => window.Tawk_API?.maximize()}
+            className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+            </svg>
+            Start Live Chat
+          </button>
         </div>
       </div>
 
       <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
         <h2 className="text-xl font-semibold mb-4">Send Us a Message</h2>
+        <p className="text-sm text-gray-400 mb-4">Fill out the form below and we will get back to you via live chat.</p>
         {sent ? (
           <div className="text-center py-8">
             <div className="text-4xl mb-3">✅</div>
-            <p className="text-emerald-400 font-medium text-lg">Message ready to send!</p>
-            <p className="text-gray-400 text-sm mt-1">Your messaging app should have opened with the message.</p>
+            <p className="text-emerald-400 font-medium text-lg">Chat opened!</p>
+            <p className="text-gray-400 text-sm mt-1">The live chat window should be open. Type your message there and we will respond shortly.</p>
             <button
               onClick={() => setSent(false)}
               className="mt-4 text-sm text-emerald-400 hover:text-emerald-300 underline"
