@@ -80,13 +80,17 @@ async function handleOddsRefresh(apiKey: string) {
         const awayOutcome = outcomes.find((o: { name: string }) => o.name === event.away_team);
         const drawOutcome = outcomes.find((o: { name: string }) => o.name === 'Draw');
 
+        const isLive = !event.completed && new Date(event.commence_time) <= new Date();
+        const newStatus = event.completed ? 'completed' : isLive ? 'live' : 'upcoming';
+
         await prisma.game.upsert({
           where: { externalId: event.id },
           update: {
             homeOdds: homeOutcome?.price || 100,
             awayOdds: awayOutcome?.price || 100,
             drawOdds: drawOutcome?.price || null,
-            status: event.completed ? 'completed' : new Date(event.commence_time) <= new Date() ? 'live' : 'upcoming',
+            status: newStatus,
+            ...(isLive || event.completed ? { bettingLocked: true } : {}),
             updatedAt: new Date(),
           },
           create: {
@@ -98,7 +102,8 @@ async function handleOddsRefresh(apiKey: string) {
             homeOdds: homeOutcome?.price || 100,
             awayOdds: awayOutcome?.price || 100,
             drawOdds: drawOutcome?.price || null,
-            status: new Date(event.commence_time) <= new Date() ? 'live' : 'upcoming',
+            status: newStatus,
+            ...(isLive || event.completed ? { bettingLocked: true } : {}),
           },
         });
 
