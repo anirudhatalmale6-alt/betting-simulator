@@ -1,10 +1,16 @@
 {
-  "name": "project",
-  "version": "1.0.0",
+  "name": "betting-simulator",
+  "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "node canary.js && tsc",
-    "prepare": "node canary.js"
+    "dev": "next dev",
+    "build": "prisma generate && (prisma db push --accept-data-loss || true) && next build",
+    "postinstall": "prisma generate",
+    "start": "next start",
+    "lint": "eslint",
+    "seed": "npx tsx prisma/seed.ts",
+    "db:push": "npx prisma db push",
+    "db:generate": "npx prisma generate"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
